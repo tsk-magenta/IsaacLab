@@ -13,16 +13,28 @@ from .franka_stack_ik_rel_blueprint_mimic_env_cfg import FrankaCubeStackIKRelBlu
 from .franka_stack_ik_rel_mimic_env import FrankaCubeStackIKRelMimicEnv
 from .franka_stack_ik_rel_mimic_env_cfg import FrankaCubeStackIKRelMimicEnvCfg
 from .franka_stack_ik_rel_visuomotor_mimic_env_cfg import FrankaCubeStackIKRelVisuomotorMimicEnvCfg
-
+# from .my_franka_stack_mimic_env import MyFrankaStackMimicEnv
+# from .my_stack_mimic_env_cfg import MyFrankaStackMimicEnvCfg
+from .my_rb_mimic_env_cfg import MyRbPaintMimicEnvCfg
+from .my_rb_mimic_env import MyRBPaintMimicEnv
 ##
 # Inverse Kinematics - Relative Pose Control
 ##
 
+# gym.register(
+#     id="Isaac-Stack-Cube-Franka-IK-Rel-Mimic-v0",
+#     entry_point="isaaclab_mimic.envs:MyFrankaStackMimicEnv",
+#     kwargs={
+#         "env_cfg_entry_point": my_stack_mimic_env_cfg.MyFrankaStackMimicEnvCfg,
+#     },
+#     disable_env_checker=True,
+# )
+
 gym.register(
-    id="Isaac-Stack-Cube-Franka-IK-Rel-Mimic-v0",
-    entry_point="isaaclab_mimic.envs:FrankaCubeStackIKRelMimicEnv",
+    id="Isaac-Paint-RB10-IK-Rel-Mimic-v0",
+    entry_point="isaaclab_mimic.envs:MyRBPaintMimicEnv",
     kwargs={
-        "env_cfg_entry_point": franka_stack_ik_rel_mimic_env_cfg.FrankaCubeStackIKRelMimicEnvCfg,
+        "env_cfg_entry_point": my_rb_mimic_env_cfg.MyRbPaintMimicEnvCfg,
     },
     disable_env_checker=True,
 )

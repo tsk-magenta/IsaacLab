@@ -15,6 +15,14 @@ from scipy.spatial.transform import Rotation
 from ..device_base import DeviceBase
 from .utils import convert_buffer
 
+# particle libs
+import asyncio
+import random
+import itertools
+from pxr import Usd, UsdGeom, Gf, Sdf, Vt
+from pxr import PhysxSchema, UsdShade
+from omni.physx.scripts import physicsUtils, particleUtils
+from isaacsim.core.api.materials.omni_pbr import OmniPBR
 
 class Se3SpaceMouse(DeviceBase):
     """A space-mouse controller for sending SE(3) commands as delta poses.
@@ -64,6 +72,11 @@ class Se3SpaceMouse(DeviceBase):
         self._thread = threading.Thread(target=self._run_device)
         self._thread.daemon = True
         self._thread.start()
+
+        # particle variables
+        self._is_creating_particles = False
+        self._particle_task = None
+        self._sphere_id_counter = itertools.count()
 
     def __del__(self):
         """Destructor for the class."""
@@ -161,6 +174,8 @@ class Se3SpaceMouse(DeviceBase):
                     if data[1] == 1:
                         # close gripper
                         self._close_gripper = not self._close_gripper
+                        print(f"Left pressed")
+                        # self._toggle_particle_creation() # thread runtime error
                         # additional callbacks
                         if "L" in self._additional_callbacks:
                             self._additional_callbacks["L"]()
@@ -173,3 +188,119 @@ class Se3SpaceMouse(DeviceBase):
                             self._additional_callbacks["R"]()
                     if data[1] == 3:
                         self._read_rotation = not self._read_rotation
+
+    """
+    Particle helpers.
+    """
+    def create_at_nozzle(self):
+        stage = omni.usd.get_context().get_stage()
+        # nozzle_path = "/World/franka_instanceable/panda_hand/Nozzle"
+        # nozzle_path = "/World/envs/env_0/Robot/panda_hand"
+        nozzle_path = "/World/envs/env_0/Robot2"
+        print(nozzle_path)
+        nozzle_prim = stage.GetPrimAtPath(nozzle_path)
+        print(nozzle_prim)
+
+        if not nozzle_prim or not nozzle_prim.IsA(UsdGeom.Xform):
+            print(f"⚠️ Nozzle prim not found or invalid at {nozzle_path}")
+            return Gf.Vec3f(0, 0, 0)
+
+        try:
+            xformable = UsdGeom.Xformable(nozzle_prim)
+            world_transform = xformable.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+            print(world_transform.ExtractTranslation())
+            world_position = Gf.Vec3f(world_transform.ExtractTranslation())
+            # world_position = (0.4, 0, 0.77)
+            world_position = (0, 0, 0)
+            print(f"🌐 World position of Nozzle: {world_position}")
+            return world_position
+        except Exception as e:
+            print(f"❌ Failed to compute world transform: {e}")
+            return Gf.Vec3f(0, 0, 0)
+        
+    async def _create_particle_with_auto_stop(self):
+        print("🟣 Creating particle system...")
+
+        stage = omni.usd.get_context().get_stage()
+        prim_id = next(self._sphere_id_counter)
+        prim_path = f"/World/ParticleScene_{prim_id}"
+
+        particle_system_path = prim_path + "/particleSystem"
+        particle_system = PhysxSchema.PhysxParticleSystem.Define(stage, particle_system_path)
+        # print(f"stage.GetDefaultPrim().GetPath(): {stage.GetDefaultPrim().GetPath()}") # nothing printed
+        # particle_system.CreateSimulationOwnerRel().SetTargets([stage.GetDefaultPrim().GetPath()]) # correct: /World
+        particle_system.CreateSimulationOwnerRel().SetTargets(["/World"])
+        # print("CreateSimulationOwnerRel().SetTargets") # ok
+        particle_system.CreateParticleContactOffsetAttr().Set(0.1)
+        # print("CreateParticleContactOffsetAttr") # ok
+        particle_system.CreateMaxVelocityAttr().Set(250.0)
+
+        # print("particle created") # ok
+
+        size = 0.2
+        contact_offset = 0.1
+        rest_offset = 0.99 * 0.6 * contact_offset
+        spacing = 1.8 * rest_offset
+        num_samples = round(size / spacing) + 1
+
+        lower = Gf.Vec3f(-size * 0.2)
+        positions, _ = particleUtils.create_particles_grid(
+            lower, spacing, num_samples, num_samples, num_samples
+        )
+
+        # print("particle: before velocities")
+
+        velocities = [Gf.Vec3f(random.uniform(5.0, 10.0), 0.0, 0.0) for _ in positions]
+
+        point_instancer_path = prim_path + "/particles"
+        particleUtils.add_physx_particleset_pointinstancer(
+            stage,
+            Sdf.Path(point_instancer_path),
+            Vt.Vec3fArray(positions),
+            Vt.Vec3fArray(velocities),
+            particle_system_path,
+            self_collision=True,
+            fluid=True,
+            particle_group=0,
+            particle_mass=1.1,
+            density=1.0,
+        )
+
+        # print("creating at nozzle")
+        position = self.create_at_nozzle()
+        point_instancer = UsdGeom.PointInstancer.Get(stage, point_instancer_path)
+        physicsUtils.set_or_add_translate_op(point_instancer, translate=position)
+
+        prototype_path = point_instancer_path + "/particlePrototype0"
+        sphere = UsdGeom.Sphere.Get(stage, prototype_path)
+        sphere.CreateRadiusAttr().Set(rest_offset * 0.2)
+
+        material_path = prim_path + "/purpleMaterial"
+        purple_material = OmniPBR(
+            prim_path=material_path,
+            name="omni_pbr_purple",
+            color=np.array([0.5, 0.0, 1.0]),
+        )
+        material = purple_material._material
+
+        UsdShade.MaterialBindingAPI(sphere).Bind(material)
+
+        print(f"✅ Particle created with purple material at {position}")
+
+    async def _create_particles_periodically(self):
+        try:
+            while self._is_creating_particles:
+                await self._create_particle_with_auto_stop()
+                await asyncio.sleep(0.5)
+        except asyncio.CancelledError:
+            print("❌ Particle task was cancelled.")
+
+    def _toggle_particle_creation(self):
+        self._is_creating_particles = not self._is_creating_particles
+        if self._is_creating_particles:
+            print("▶️ K key pressed: Starting particle generation...")
+            self._particle_task = asyncio.ensure_future(self._create_particles_periodically())
+        else:
+            print("⏹️ K key pressed again: Stopping particle generation...")
+            if self._particle_task:
+                self._particle_task.cancel()

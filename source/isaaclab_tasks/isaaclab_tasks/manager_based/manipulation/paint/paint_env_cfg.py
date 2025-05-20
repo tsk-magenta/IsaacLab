@@ -2,8 +2,9 @@
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
-
-from dataclasses import MISSING
+# /home/hys/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/paint/paint_env_cfg.py
+from dataclasses import MISSING, field
+from typing import TYPE_CHECKING, List, Dict
 
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
@@ -20,8 +21,12 @@ from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
 from . import mdp
-
-
+scale = float(5.0)
+TARGET_LOCATIONS = {
+    "target1": [-0.07 * scale, 0.0 * scale, 0.09 * scale],
+    "target2": [0.07 * scale, 0.0 * scale, 0.09 * scale],
+    }
+ths = 0.35
 ##
 # Scene definition
 ##
@@ -44,21 +49,6 @@ class ObjectTableSceneCfg(InteractiveSceneCfg):
         spawn=UsdFileCfg(usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd"),
     )
 
-    tilted_wall = AssetBaseCfg(
-        prim_path="{ENV_REGEX_NS}/TiltedWall",
-        spawn=sim_utils.CuboidCfg(
-            size=(1.0, 1.5, 0.01),
-            collision_props=sim_utils.CollisionPropertiesCfg(),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.0, 0.0), opacity=0.1),
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
-            activate_contact_sensors=True,
-        ),
-        init_state=AssetBaseCfg.InitialStateCfg(
-            pos=(0.6 + 0.085, 0.0, 0.3), rot=(0.7238795325, 0.0, -0.3826834324, 0.0)
-            # pos=(0.6 + 0.085, 0.0, 0.3), rot=(0.9238795325, 0.0, -0.3826834324, 0.0) # original
-        ),
-    )
-
     # plane
     plane = AssetBaseCfg(
         prim_path="/World/GroundPlane",
@@ -76,13 +66,11 @@ class ObjectTableSceneCfg(InteractiveSceneCfg):
 ##
 # MDP settings
 ##
+
 @configclass
 class ActionsCfg:
-    """Action specifications for the MDP."""
-
-    # will be set by agent env cfg
-    arm_action: mdp.JointPositionActionCfg = MISSING
-    gripper_action: mdp.BinaryJointPositionActionCfg = MISSING
+    arm_action: mdp.JointPositionActionCfg = MISSING # 또는 IKActionCfg
+    spray_action: mdp.SprayOnOffActionCfg = MISSING # 커스텀 타입
 
 
 @configclass
@@ -96,13 +84,28 @@ class ObservationsCfg:
         actions = ObsTerm(func=mdp.last_action)
         joint_pos = ObsTerm(func=mdp.joint_pos_rel)
         joint_vel = ObsTerm(func=mdp.joint_vel_rel)
-        object = ObsTerm(func=mdp.object_obs)
-        cube_positions = ObsTerm(func=mdp.cube_positions_in_world_frame)
-        cube_orientations = ObsTerm(func=mdp.cube_orientations_in_world_frame)
+        # object = ObsTerm(func=mdp.object_obs)
+        # cube_positions = ObsTerm(func=mdp.cube_positions_in_world_frame)
+        # cube_orientations = ObsTerm(func=mdp.cube_orientations_in_world_frame)
         eef_pos = ObsTerm(func=mdp.ee_frame_pos)
         eef_quat = ObsTerm(func=mdp.ee_frame_quat)
-        gripper_pos = ObsTerm(func=mdp.gripper_pos)
+        # gripper_pos = ObsTerm(func=mdp.gripper_pos)
 
+        ######### 새로운 keys 추가 ##########
+        eef_to_current_target_dist = ObsTerm(
+            func=mdp.eef_to_myblock_current_target_dist,
+            params={
+                "eef_frame_cfg": SceneEntityCfg("ee_frame"),
+                "myblock_cfg": SceneEntityCfg("myblock")
+            }
+        )
+
+        current_spray_state = ObsTerm(
+            func=mdp.spray_on_off_state,
+            params={"spray_action_cfg_name": "spray_action"} # ActionsCfg의 필드 이름과 일치
+        )
+
+        ####################################
         def __post_init__(self):
             self.enable_corruption = False
             self.concatenate_terms = False
@@ -119,46 +122,24 @@ class ObservationsCfg:
     class SubtaskCfg(ObsGroup):
         """Observations for subtask group."""
 
-        grasp_1 = ObsTerm(
-            func=mdp.object_grasped,
-            params={
-                "robot_cfg": SceneEntityCfg("robot"),
-                "ee_frame_cfg": SceneEntityCfg("ee_frame"),
-                "object_cfg": SceneEntityCfg("cube_2"),
-            },
+        approach_1 = ObsTerm(
+        func=mdp.check_eef_near_myblock_target,
+        params={
+            "eef_frame_cfg": SceneEntityCfg("ee_frame"),
+            "myblock_cfg": SceneEntityCfg("myblock"),
+            "target_local_pos": TARGET_LOCATIONS["target1"],
+            "threshold": ths,
+            }
         )
-        stack_1 = ObsTerm(
-            func=mdp.object_stacked,
+
+        approach_2 = ObsTerm(
+            func=mdp.check_eef_near_myblock_target,
             params={
-                "robot_cfg": SceneEntityCfg("robot"),
-                "upper_object_cfg": SceneEntityCfg("cube_2"),
-                "lower_object_cfg": SceneEntityCfg("cube_1"),
-            },
-        )
-        grasp_2 = ObsTerm(
-            func=mdp.object_grasped,
-            params={
-                "robot_cfg": SceneEntityCfg("robot"),
-                "ee_frame_cfg": SceneEntityCfg("ee_frame"),
-                "object_cfg": SceneEntityCfg("cube_3"),
-            },
-        )
-        """new terms"""
-        paint_1 = ObsTerm(
-            func=mdp.object_painted,
-            params={
-                "robot_cfg": SceneEntityCfg("robot"),
-                "upper_object_cfg": SceneEntityCfg("cube_2"),
-                "lower_object_cfg": SceneEntityCfg("cube_1"),
-            },
-        )
-        move_1 = ObsTerm(
-            func=mdp.ee_moved,
-            params={
-                "robot_cfg": SceneEntityCfg("robot"),
-                "ee_frame_cfg": SceneEntityCfg("ee_frame"),
-                "object_cfg": SceneEntityCfg("cube_3"),
-            },
+                "eef_frame_cfg": SceneEntityCfg("ee_frame"),
+                "myblock_cfg": SceneEntityCfg("myblock"),
+                "target_local_pos": TARGET_LOCATIONS["target2"],
+                "threshold": ths,
+            }
         )
 
         def __post_init__(self):
@@ -174,28 +155,32 @@ class ObservationsCfg:
 @configclass
 class TerminationsCfg:
     """Termination terms for the MDP."""
-
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
 
-    cube_1_dropping = DoneTerm(
-        func=mdp.root_height_below_minimum, params={"minimum_height": -0.05, "asset_cfg": SceneEntityCfg("cube_1")}
+    # 새로운 종료 조건 - 모든 서브태스크 완료 확인
+    # success = DoneTerm(
+    #     func=mdp.check_all_subtasks_completed,
+    #     params={
+    #         "eef_frame_cfg": SceneEntityCfg("ee_frame"),
+    #         "myblock_cfg": SceneEntityCfg("myblock"),
+    #         "threshold": ths,
+    #     }
+    # )
+    success = DoneTerm(
+        func=mdp.check_eef_near_myblock_target,
+        params={
+            "eef_frame_cfg": SceneEntityCfg("ee_frame"),
+            "myblock_cfg": SceneEntityCfg("myblock"),
+            "target_local_pos": TARGET_LOCATIONS["target2"],  # 마지막 타겟(approach2) 위치
+            "threshold": ths,
+        }
     )
-
-    cube_2_dropping = DoneTerm(
-        func=mdp.root_height_below_minimum, params={"minimum_height": -0.05, "asset_cfg": SceneEntityCfg("cube_2")}
-    )
-
-    cube_3_dropping = DoneTerm(
-        func=mdp.root_height_below_minimum, params={"minimum_height": -0.05, "asset_cfg": SceneEntityCfg("cube_3")}
-    )
-
-    success = DoneTerm(func=mdp.cubes_stacked)
+   
 
 
 @configclass
 class PaintEnvCfg(ManagerBasedRLEnvCfg):
-    """Configuration for the Painting environment."""
-
+    """Configuration for the painting environment."""
     # Scene settings
     scene: ObjectTableSceneCfg = ObjectTableSceneCfg(num_envs=4096, env_spacing=2.5, replicate_physics=False)
     # Basic settings

@@ -14,6 +14,8 @@ from . import (
     paint_ik_rel_visuomotor_env_cfg,
     paint_joint_pos_env_cfg,
     paint_joint_pos_instance_randomize_env_cfg,
+    my_block_ik_rel_env_cfg,
+    franka_paint_custom_env,
 )
 
 ##
@@ -47,15 +49,46 @@ gym.register(
 # Inverse Kinematics - Relative Pose Control
 ##
 
+
+
+################### 새로운 환경 등록 ###################
+# gym.register(
+#     id="Isaac-Paint-Cube-Franka-IK-Rel-v0",
+#     entry_point="isaaclab.envs:ManagerBasedRLEnv",
+#     kwargs={
+#         "env_cfg_entry_point": stack_ik_rel_env_cfg.FrankaCubeStackEnvCfg,
+#         "robomimic_bc_cfg_entry_point": os.path.join(agents.__path__[0], "robomimic/bc_rnn_low_dim.json"),
+#     },
+#     disable_env_checker=True,
+# )
+
 gym.register(
     id="Isaac-Paint-Franka-IK-Rel-v0",
-    entry_point="isaaclab.envs:ManagerBasedRLEnv",
+    # --- entry_point 변경 ---
+    # 형식: "패키지.경로.파일명:클래스명"
+    # isaaclab_tasks.manager_based.manipulation.stack 이 기본 경로라고 가정
+    entry_point="isaaclab_tasks.manager_based.manipulation.paint.config.franka.franka_paint_custom_env:FrankaPaintCustomEnv",
     kwargs={
-        "env_cfg_entry_point": paint_ik_rel_env_cfg.FrankaPaintEnvCfg,
+        "env_cfg_entry_point": my_block_ik_rel_env_cfg.MyBlockIKRelEnvCfg,
         "robomimic_bc_cfg_entry_point": os.path.join(agents.__path__[0], "robomimic/bc_rnn_low_dim.json"),
     },
     disable_env_checker=True,
 )
+
+## rb 로봇 전용 환경 ##
+gym.register(
+    id="Isaac-Paint-RB10-IK-Rel-v0",
+    entry_point="isaaclab_tasks.manager_based.manipulation.paint.config.franka.franka_paint_custom_env:FrankaPaintCustomEnv",
+    kwargs={
+        "env_cfg_entry_point": my_block_ik_rel_env_cfg.MyBlockIKRelEnvCfg,
+        "robomimic_bc_cfg_entry_point": os.path.join(agents.__path__[0], "robomimic/bc_rnn_low_dim.json"),
+    },
+    disable_env_checker=True,
+)
+
+######################################################
+
+
 
 gym.register(
     id="Isaac-Paint-Franka-IK-Rel-Visuomotor-v0",

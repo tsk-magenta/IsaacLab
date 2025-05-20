@@ -183,7 +183,9 @@ def main():
     # create controller
     if args_cli.teleop_device.lower() == "keyboard":
         teleop_interface = Se3Keyboard(
-            pos_sensitivity=0.05 * args_cli.sensitivity, rot_sensitivity=0.05 * args_cli.sensitivity
+            pos_sensitivity=0.05 * args_cli.sensitivity, 
+            rot_sensitivity=0.05 * args_cli.sensitivity,
+            env=env
         )
     elif args_cli.teleop_device.lower() == "spacemouse":
         teleop_interface = Se3SpaceMouse(
@@ -264,7 +266,10 @@ def main():
                 # compute actions based on environment
                 actions = pre_process_actions(teleop_data, env.num_envs, env.device)
                 # apply actions
-                env.step(actions)
+                obv = env.step(actions)
+                
+                # Store the last observation for Se3Keyboard to access
+                env.last_observations = obv[0]
             else:
                 env.sim.render()
 

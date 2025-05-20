@@ -34,7 +34,7 @@ import numpy as np
 import os
 import time
 import torch
-
+import time
 # Isaac Lab AppLauncher
 from isaaclab.app import AppLauncher
 
@@ -352,7 +352,29 @@ def main():
     # reset before starting
     env.sim.reset()
     env.reset()
-    teleop_interface.reset()
+    print(f"Number of environments: {env.num_envs}")
+    if hasattr(env.scene, "asset_prim_paths"):
+        print(f"env.scene.asset_prim_paths: {env.scene.asset_prim_paths}")
+        if "robot" in env.scene.asset_prim_paths:
+            print(f"Robot prim paths in scene: {env.scene.asset_prim_paths['robot']}")
+        else:
+            print("'robot' key not found in env.scene.asset_prim_paths")
+    else:
+        print("env.scene does not have asset_prim_paths attribute.")
+
+    robot_asset = env.scene.articulations.get("robot") # 또는 env.scene.robot
+    if robot_asset:
+        if hasattr(robot_asset, 'prim_path_expr_resolved'):
+            print(f"Robot asset 'prim_path_expr_resolved': {robot_asset.prim_path_expr_resolved}")
+        else:
+            print("Robot asset does not have 'prim_path_expr_resolved' attribute.")
+    else:
+        print("Could not get 'robot' asset from scene.")
+        teleop_interface.reset()
+    
+    # --- 마지막 출력 시간 기록 변수 초기화 ---
+
+    last_print_time = time.time()
 
     # simulate environment -- run everything in inference mode
     current_recorded_demo_count = 0
@@ -380,24 +402,142 @@ def main():
                 # compute actions based on environment
                 actions = pre_process_actions(teleop_data, env.num_envs, env.device)
                 obv = env.step(actions)
-                if subtasks is not None:
-                    if subtasks == {}:
-                        subtasks = obv[0].get("subtask_terms")
-                    elif subtasks:
-                        show_subtask_instructions(instruction_display, subtasks, obv, env.cfg)
-            else:
-                env.sim.render()
+                
+                current_time = time.time()
+                if current_time - last_print_time >= 1.0:
+                    # --- 1. 로봇의 EEF 월드 좌표 출력 ---
+                    if isinstance(obv[0], dict) and "policy" in obv[0] and "eef_pos" in obv[0]["policy"]:
+                        eef_world_pos = obv[0]["policy"]["eef_pos"][0].cpu().numpy()
+                        print(f"1. EEF World Pos: [X={eef_world_pos[0]:.3f}, Y={eef_world_pos[1]:.3f}, Z={eef_world_pos[2]:.3f}]")
+                    
+                    # --- 2. 현재 Target의 World 좌표 출력 ---
+                    # 현재 타겟 인덱스 확인
+                    if hasattr(env, 'current_target_idx'):
+                        current_target_idx = env.current_target_idx[0].item()
+                        # 현재 타겟 로컬 좌표 가져오기
+                        if hasattr(env, 'all_target_local_positions') and len(env.all_target_local_positions) > current_target_idx:
+                            current_target_local_pos = env.all_target_local_positions[current_target_idx]
+                            
+                            # myblock 객체 가져오기
+                            try:
+                                # 다양한 방법으로 myblock 접근 시도
+                                myblock = None
+                                if hasattr(env.scene, "rigid_objects"):
+                                    myblock = env.scene.rigid_objects.get("myblock")
+                                
+                                if myblock is None and hasattr(env.scene, "__getitem__"):
+                                    try:
+                                        myblock = env.scene["myblock"]
+                                    except (KeyError, TypeError):
+                                        pass
+                                
+                                if myblock is None:
+                                    # 다른 방법으로 시도
+                                    for possible_attr in ["rigid_objects", "assets"]:
+                                        if hasattr(env.scene, possible_attr):
+                                            scene_coll = getattr(env.scene, possible_attr)
+                                            if hasattr(scene_coll, "get"):
+                                                myblock = scene_coll.get("myblock")
+                                                if myblock is not None:
+                                                    break
+                                
+                                if myblock is not None:
+                                    # myblock의 월드 포즈 가져오기
+                                    myblock_pos_w = myblock.data.root_pos_w[0].cpu()
+                                    myblock_quat_w = myblock.data.root_quat_w[0].cpu()
+                                    
+                                    # 타겟 로컬 좌표를 월드 좌표로 변환 (직접 계산)
+                                    try:
+                                        import isaaclab.utils.math as math_utils
+                                        target_world_pos = math_utils.quat_apply(
+                                            myblock_quat_w.to(env.device), 
+                                            current_target_local_pos
+                                        ).cpu() + myblock_pos_w
+                                        
+                                        # 월드 좌표 출력
+                                        target_world_pos_np = target_world_pos.numpy()
+                                        print(f"2. Current Target ({current_target_idx}) World Pos: [X={target_world_pos_np[0]:.3f}, Y={target_world_pos_np[1]:.3f}, Z={target_world_pos_np[2]:.3f}]")
+                                    except Exception as e:
+                                        print(f"Error calculating target world position: {e}")
+                            except Exception as e:
+                                print(f"Error accessing myblock: {e}")
+                    
+                    # --- 4. 서브태스크에 맞는 Target과 EEF 간의 거리 출력 ---
+                    eef_to_current_target_dist_key = "eef_to_current_target_dist"
+                    if isinstance(obv[0], dict) and "policy" in obv[0] and eef_to_current_target_dist_key in obv[0]["policy"]:
+                        distance_tensor = obv[0]["policy"][eef_to_current_target_dist_key]
+                        try:
+                            distance = distance_tensor[0].item() if distance_tensor.dim() == 2 else distance_tensor[0, 0].item()
+                            print(f"4. EEF to Current Target Dist: {distance:.4f}")
+                        except Exception as e:
+                            print(f"Error extracting distance value: {e}, tensor shape: {distance_tensor.shape}")
+                    
+                    # --- 3. 서브태스크 성공 여부 출력 ---
+                    # 성공한 서브태스크를 추적하기 위한 변수 초기화
+                    if not hasattr(env, '_completed_subtasks'):
+                        env._completed_subtasks = set()
+                    
+                    # subtask_terms 확인
+                    group_name = "subtask_terms"
+                    if isinstance(obv[0], dict) and group_name in obv[0]:
+                        # 모든 서브태스크 상태 확인
+                        all_subtasks_status = {}
+                        for subtask_key in obv[0][group_name]:
+                            try:
+                                subtask_tensor = obv[0][group_name][subtask_key]
+                                is_completed = False
+                                if subtask_tensor.numel() > 0:  # 비어있지 않은 텐서인지 확인
+                                    is_completed = bool(subtask_tensor[0].item() if subtask_tensor.dim() == 2 else subtask_tensor[0, 0].item())
+                                all_subtasks_status[subtask_key] = is_completed
+                                
+                                # 새로 완료된 서브태스크 확인
+                                if is_completed and subtask_key not in env._completed_subtasks:
+                                    env._completed_subtasks.add(subtask_key)
+                                    print(f"3. 🎉 NEW SUCCESS: Subtask '{subtask_key}' completed!")
+                            except (IndexError, AttributeError, RuntimeError) as e:
+                                print(f"Error processing subtask {subtask_key}: {e}")
+                        
+                        # 모든 서브태스크 상태 출력
+                        status_str = " | ".join([f"{key}: {'✅' if val else '❌'}" for key, val in all_subtasks_status.items()])
+                        print(f"3. All Subtasks Status: {status_str}")
+                    
+                    # --- 5. Terminations 완료 시 성공 메시지 ---
+                    if success_term is not None:
+                        try:
+                            success_result = success_term.func(env, **success_term.params)
+                            if success_result.numel() > 0 and bool(success_result[0]):
+                                if not hasattr(env, '_success_message_shown'):
+                                    env._success_message_shown = False
+                                
+                                if not env._success_message_shown:
+                                    print("\n" + "="*50)
+                                    print("🎉🎉🎉 TASK COMPLETED SUCCESSFULLY! 🎉🎉🎉")
+                                    print("="*50 + "\n")
+                                    env._success_message_shown = True
+                                
+                                # 성공 단계 카운트 출력
+                                print(f"5. Success Steps: {success_step_count}/{args_cli.num_success_steps}")
+                            elif hasattr(env, '_success_message_shown'):
+                                env._success_message_shown = False
+                        except Exception as e:
+                            print(f"Error checking success condition: {e}")
+                    
+                    # 마지막 출력 시간 갱신
+                    last_print_time = current_time
+                else:
+                    env.sim.render()
 
-            if success_term is not None:
-                if bool(success_term.func(env, **success_term.params)[0]):
-                    success_step_count += 1
-                    if success_step_count >= args_cli.num_success_steps:
-                        env.recorder_manager.record_pre_reset([0], force_export_or_skip=False)
-                        env.recorder_manager.set_success_to_episodes(
-                            [0], torch.tensor([[True]], dtype=torch.bool, device=env.device)
-                        )
-                        env.recorder_manager.export_episodes([0])
-                        should_reset_recording_instance = True
+                if success_term is not None:
+                    if bool(success_term.func(env, **success_term.params)[0]):
+                        success_step_count += 1
+                        if success_step_count >= args_cli.num_success_steps:
+                            print("SUCCESS!!!!!!!!!!!!!!!!!!!!!!!!")
+                            env.recorder_manager.record_pre_reset([0], force_export_or_skip=False)
+                            env.recorder_manager.set_success_to_episodes(
+                                [0], torch.tensor([[True]], dtype=torch.bool, device=env.device)
+                            )
+                            env.recorder_manager.export_episodes([0])
+                            should_reset_recording_instance = True
                 else:
                     success_step_count = 0
 

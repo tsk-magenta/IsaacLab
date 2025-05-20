@@ -2,6 +2,7 @@
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
+# /home/hys/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/paint/config/franka/paint_joint_pos_env_cfg.py
 
 from isaaclab.assets import RigidObjectCfg
 from isaaclab.managers import EventTermCfg as EventTerm
@@ -13,78 +14,165 @@ from isaaclab.sim.spawners.from_files.from_files_cfg import UsdFileCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
+
 from isaaclab_tasks.manager_based.manipulation.paint import mdp
-from isaaclab_tasks.manager_based.manipulation.paint.mdp import franka_paint_events
+# from isaaclab_tasks.manager_based.manipulation.paint.mdp import franka_paint_events
+from isaaclab_tasks.manager_based.manipulation.paint.mdp import rb_paint_events
 from isaaclab_tasks.manager_based.manipulation.paint.paint_env_cfg import PaintEnvCfg
 
 ##
 # Pre-defined configs
 ##
 from isaaclab.markers.config import FRAME_MARKER_CFG  # isort: skip
-from isaaclab_assets.robots.franka import FRANKA_PANDA_CFG  # isort: skip
+# from isaaclab_assets.robots.franka import FRANKA_PANDA_CFG  # isort: skip
+from isaaclab_assets.robots.rb import RB10_CFG
 
+
+## 내가 추가한 modules
+import os
+import isaaclab.sim as sim_utils
+import math
+from isaaclab.sensors import CameraCfg
+
+# RB10 초기 자세 (도 단위)
+rb10_initial_joint_angles_deg_for_event = [
+    10.0,  # Base joint (예: 이 태스크에서는 약간 회전)
+    -45.0, # Shoulder joint
+    60.0,  # Elbow joint
+    -10.0, # Wrist 1 joint
+    -80.0, # Wrist 2 joint
+    5.0    # Wrist 3 joint
+]
+# 도 단위를 라디안 단위로 변환
+rb10_initial_joint_angles_rad_for_event = [math.radians(deg) for deg in rb10_initial_joint_angles_deg_for_event]
+
+# 표준편차도 필요하다면 여기서 변환
+randomize_std_rad_for_event = math.radians(1.0) # 예: 1도 표준편차
 
 @configclass
 class EventCfg:
     """Configuration for events."""
-
-    init_franka_arm_pose = EventTerm(
-        func=franka_paint_events.set_default_joint_pose,
+    # 이제 EventCfg 내에는 EventTermCfg 타입의 객체만 존재합니다.
+    init_rb10_arm_pose = EventTerm(
+        func=rb_paint_events.set_rb10_default_pose, # RB10 로봇용 함수
         mode="startup",
         params={
-            "default_pose": [0.0444, -0.1894, -0.1107, -2.5148, 0.0044, 2.3775, 0.6952, 0.0400, 0.0400],
+            "default_pose": rb10_initial_joint_angles_rad_for_event, # 미리 변환된 라디안 리스트 사용
         },
     )
 
-    randomize_franka_joint_state = EventTerm(
-        func=franka_paint_events.randomize_joint_by_gaussian_offset,
+    randomize_rb10_joint_state = EventTerm(
+        func=rb_paint_events.randomize_rb10_joints_by_gaussian_offset, # RB10 로봇용 함수
         mode="reset",
         params={
             "mean": 0.0,
-            "std": 0.02,
-            "asset_cfg": SceneEntityCfg("robot"),
+            "std": randomize_std_rad_for_event, # 미리 변환된 라디안 값 사용 (또는 직접 라디안 값 입력)
+            "robot_cfg": SceneEntityCfg("robot"),
         },
     )
 
-    randomize_cube_positions = EventTerm(
-        func=franka_paint_events.randomize_object_pose,
-        mode="reset",
-        params={
-            "pose_range": {"x": (0.4, 0.6), "y": (-0.10, 0.10), "z": (0.0203, 0.0203), "yaw": (-1.0, 1, 0)},
-            "min_separation": 0.1,
-            "asset_cfgs": [SceneEntityCfg("cube_1"), SceneEntityCfg("cube_2"), SceneEntityCfg("cube_3")],
-        },
-    )
 
 
 @configclass
 class FrankaPaintEnvCfg(PaintEnvCfg):
     def __post_init__(self):
+        
         # post init of parent
         super().__post_init__()
 
         # Set events
+
+        # self.scene.robot, self.scene.gripper, self.scene.gripper_constraint = create_rb10_with_panda_gripper(self.scene, RB10_1300E_CFG, PANDA_GRIPPER_CFG)
+        # Set Franka as robot
+        self.scene.robot = RB10_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot.spawn.semantic_tags = [("class", "robot")]
         self.events = EventCfg()
 
-        # Set Franka as robot
-        self.scene.robot = FRANKA_PANDA_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        self.scene.robot.spawn.semantic_tags = [("class", "robot")]
+        config_directory = os.path.dirname(__file__)
+        my_block_usd_path = os.path.join(config_directory, "block_hys_no_materials.usd")
 
         # Add semantics to table
         self.scene.table.spawn.semantic_tags = [("class", "table")]
 
         # Add semantics to ground
         self.scene.plane.semantic_tags = [("class", "ground")]
-
+        
         # Set actions for the specific robot type (franka)
         self.actions.arm_action = mdp.JointPositionActionCfg(
-            asset_name="robot", joint_names=["panda_joint.*"], scale=0.5, use_default_offset=True
+            asset_name="robot", 
+            joint_names=["base", "shoulder", "elbow", "wrist1", "wrist2", "wrist3"], 
+            scale=0.5, 
+            use_default_offset=True
         )
-        self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
+
+        actual_robot_prim_path = "/World/envs/env_0/Robot"
+
+        self.actions.spray_action = mdp.SprayOnOffActionCfg(
             asset_name="robot",
-            joint_names=["panda_finger.*"],
-            open_command_expr={"panda_finger_.*": 0.04},
-            close_command_expr={"panda_finger_.*": 0.0},
+            ee_frame_asset_name="ee_frame",
+            nozzle_tip_frame_name="end_effector",
+            projectile_prim_name="NozzleProjectile",
+            # projectile_type="Cube", # 기본값 사용 시 생략 가능
+            # projectile_scale=[0.02, 0.02, 0.02], # 기본값
+            # projectile_mass=0.01, # 기본값
+            projectile_parent_link_rel_path="link6", 
+            robot_prim_path_for_single_env=actual_robot_prim_path,
+            
+            # 새로운 설정값 (필요에 따라 여기서 오버라이드)
+            spray_interval=0.25,  # 0.25초 간격
+            max_projectiles=50,   # 최대 50개
+            custom_projectile_initial_speed=100.0 # 발사 속도 100
+        )
+
+        # Listens to the required transforms
+        marker_cfg = FRAME_MARKER_CFG.copy()
+        marker_cfg.markers["frame"].scale = (0.1, 0.1, 0.1)
+        marker_cfg.prim_path = "/Visuals/FrameTransformer"
+
+        self.scene.ee_frame = FrameTransformerCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/link0",
+            debug_vis=False,
+            visualizer_cfg=marker_cfg,
+            target_frames=[
+                FrameTransformerCfg.FrameCfg(
+                    prim_path="{ENV_REGEX_NS}/Robot/link6",
+                    name="end_effector",
+                    offset=OffsetCfg(
+                        pos=[0.0, -0.28, 0.0],
+                    ),
+                ),
+            ],
+        ) 
+
+        self.scene.table_camera = CameraCfg(
+            # 카메라 Prim이 생성될 경로 (환경 네임스페이스 아래에 생성)
+            prim_path="{ENV_REGEX_NS}/table_camera",
+            # 카메라 업데이트 주기 (0이면 매 렌더링 스텝)
+            update_period=0.0, # 필요에 따라 조정 (예: 0.0333 -> ~30Hz)
+            # 카메라 해상도
+            height=480,
+            width=640,
+            # 수집할 데이터 종류 (rgb, depth 등 추가 가능)
+            data_types=["rgb"],
+            # 카메라 내부 속성 설정 (Pinhole 카메라 사용)
+            spawn=sim_utils.PinholeCameraCfg(
+                focal_length=24.0,
+                focus_distance=400.0,
+                horizontal_aperture=20.955,
+                clipping_range=(0.1, 1.0e5), # 물체가 보이는 최소/최대 거리
+            ),
+            # --- 카메라 위치 및 방향 설정 ---
+            offset=CameraCfg.OffsetCfg(
+                # prim_path 기준으로 상대적 위치 [X, Y, Z] (월드 좌표계 기준)
+                # pos=(-3, -2.5, 4), # 예시: 테이블 중앙 위쪽
+                pos=(-2, 1.56203, 1.32506), # 예시: 테이블 중앙 위쪽
+                # prim_path 기준으로 상대적 회전 [w, x, y, z] (쿼터니언)
+                # rot=(0.81215, 0.37003, -0.13992, -0.42885), # 예시: 아래를 약간 비스듬히 바라봄 
+                rot=(-0.46447, -0.32107, 0.48129, 0.67047), # 예시: 아래를 약간 비스듬히 바라봄 
+
+                convention="opengl", # 좌표계 관례 (보통 "ros" 또는 "opengl")
+            ),
+
         )
 
         # Rigid body properties of each cube
@@ -97,67 +185,13 @@ class FrankaPaintEnvCfg(PaintEnvCfg):
             disable_gravity=False,
         )
 
-        # Set each stacking cube deterministically
-        self.scene.cube_1 = RigidObjectCfg(
-            prim_path="{ENV_REGEX_NS}/Cube_1",
-            init_state=RigidObjectCfg.InitialStateCfg(pos=[0.4, 0.0, 0.0203], rot=[1, 0, 0, 0]),
+        self.scene.myblock = RigidObjectCfg(
+            prim_path="{ENV_REGEX_NS}/MyBlock",
+            init_state=RigidObjectCfg.InitialStateCfg(pos=[0.7, 0, 0.5], rot=[0.707, 0, 0, -0.707]), #rot=[0.707, 0, 0, 0.707]),
             spawn=UsdFileCfg(
-                usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/blue_block.usd",
-                scale=(1.0, 1.0, 1.0),
+                usd_path=my_block_usd_path,
+                scale=(5.0, 5.0, 5.0),
                 rigid_props=cube_properties,
-                semantic_tags=[("class", "cube_1")],
+                semantic_tags=[("class", "myblock")],
             ),
-        )
-        self.scene.cube_2 = RigidObjectCfg(
-            prim_path="{ENV_REGEX_NS}/Cube_2",
-            init_state=RigidObjectCfg.InitialStateCfg(pos=[0.55, 0.05, 0.0203], rot=[1, 0, 0, 0]),
-            spawn=UsdFileCfg(
-                usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/red_block.usd",
-                scale=(1.0, 1.0, 1.0),
-                rigid_props=cube_properties,
-                semantic_tags=[("class", "cube_2")],
-            ),
-        )
-        self.scene.cube_3 = RigidObjectCfg(
-            prim_path="{ENV_REGEX_NS}/Cube_3",
-            init_state=RigidObjectCfg.InitialStateCfg(pos=[0.60, -0.1, 0.0203], rot=[1, 0, 0, 0]),
-            spawn=UsdFileCfg(
-                usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/green_block.usd",
-                scale=(1.0, 1.0, 1.0),
-                rigid_props=cube_properties,
-                semantic_tags=[("class", "cube_3")],
-            ),
-        )
-
-        # Listens to the required transforms
-        marker_cfg = FRAME_MARKER_CFG.copy()
-        marker_cfg.markers["frame"].scale = (0.1, 0.1, 0.1)
-        marker_cfg.prim_path = "/Visuals/FrameTransformer"
-        self.scene.ee_frame = FrameTransformerCfg(
-            prim_path="{ENV_REGEX_NS}/Robot/panda_link0",
-            debug_vis=False,
-            visualizer_cfg=marker_cfg,
-            target_frames=[
-                FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/panda_hand",
-                    name="end_effector",
-                    offset=OffsetCfg(
-                        pos=[0.0, 0.0, 0.1034],
-                    ),
-                ),
-                FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/panda_rightfinger",
-                    name="tool_rightfinger",
-                    offset=OffsetCfg(
-                        pos=(0.0, 0.0, 0.046),
-                    ),
-                ),
-                FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/panda_leftfinger",
-                    name="tool_leftfinger",
-                    offset=OffsetCfg(
-                        pos=(0.0, 0.0, 0.046),
-                    ),
-                ),
-            ],
         )

@@ -125,7 +125,7 @@ class TerminationsCfg:
 
 @configclass
 class PaintInstanceRandomizeEnvCfg(ManagerBasedRLEnvCfg):
-    """Configuration for the Painting environment."""
+    """Configuration for the painting environment."""
 
     # Scene settings
     scene: ObjectTableSceneCfg = ObjectTableSceneCfg(num_envs=4096, env_spacing=2.5, replicate_physics=False)
