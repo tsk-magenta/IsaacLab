@@ -26,7 +26,7 @@ TARGET_LOCATIONS = {
     "target1": [-0.07 * scale, 0.0 * scale, 0.09 * scale],
     "target2": [0.07 * scale, 0.0 * scale, 0.09 * scale],
     }
-ths = 0.35
+ths = 0.25
 ##
 # Scene definition
 ##
@@ -70,8 +70,7 @@ class ObjectTableSceneCfg(InteractiveSceneCfg):
 @configclass
 class ActionsCfg:
     arm_action: mdp.JointPositionActionCfg = MISSING # 또는 IKActionCfg
-    spray_action: mdp.SprayOnOffActionCfg = MISSING # 커스텀 타입
-
+    dummy_action: mdp.DummyActionCfg = MISSING
 
 @configclass
 class ObservationsCfg:
@@ -84,14 +83,8 @@ class ObservationsCfg:
         actions = ObsTerm(func=mdp.last_action)
         joint_pos = ObsTerm(func=mdp.joint_pos_rel)
         joint_vel = ObsTerm(func=mdp.joint_vel_rel)
-        # object = ObsTerm(func=mdp.object_obs)
-        # cube_positions = ObsTerm(func=mdp.cube_positions_in_world_frame)
-        # cube_orientations = ObsTerm(func=mdp.cube_orientations_in_world_frame)
         eef_pos = ObsTerm(func=mdp.ee_frame_pos)
         eef_quat = ObsTerm(func=mdp.ee_frame_quat)
-        # gripper_pos = ObsTerm(func=mdp.gripper_pos)
-
-        ######### 새로운 keys 추가 ##########
         eef_to_current_target_dist = ObsTerm(
             func=mdp.eef_to_myblock_current_target_dist,
             params={
@@ -100,10 +93,10 @@ class ObservationsCfg:
             }
         )
 
-        current_spray_state = ObsTerm(
-            func=mdp.spray_on_off_state,
-            params={"spray_action_cfg_name": "spray_action"} # ActionsCfg의 필드 이름과 일치
-        )
+        # current_spray_state = ObsTerm(
+        #     func=mdp.spray_on_off_state,
+        #     params={"spray_action_cfg_name": "spray_action"} # ActionsCfg의 필드 이름과 일치
+        # )
 
         ####################################
         def __post_init__(self):

@@ -6,8 +6,8 @@ from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 # from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR # 현재 사용 안 함
 
-# RB10_USD_PATH = "/home/hys/Downloads/rb10_1300e_nozzle/urdf/rb10_1300e_nozzle/rb10_1300e_nozzle.usd"
-RB10_USD_PATH = "C:\\Users\\tsk\\Downloads\\motionplanning\\isaaclab\\rb10_nozzle_task\\rb10_1300e_nozzle\\urdf\\rb10_1300e_nozzle\\rb10_1300e_nozzle.usd"
+# absolute path
+RB10_USD_PATH = "C:/Users/tsk/IsaacLab/source/isaaclab_assets/isaaclab_assets/robots/rb10_1300e_nozzle/urdf/rb10_1300e_nozzle/rb10_1300e_nozzle.usd" # working
 
 # USD 파일의 실제 관절 이름 (USD 파일 내 /rb10_1300e_with_nozzle/joints/ 하위의 조인트 프리미티브 이름)
 joint_names_for_rb10_init = [

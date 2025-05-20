@@ -40,7 +40,7 @@
         "goal_mode": null,
         "cuda": true,
         "batch_size": 100,
-        "num_epochs": 2000,
+        "num_epochs": 500,
         "seed": 101
     },
     "algo": {
@@ -87,10 +87,9 @@
         "modalities": {
             "obs": {
                 "low_dim": [
-                    "eef_pos",
-                    "eef_quat",
-                    "gripper_pos",
-                    "object"
+                    "eef_pos",                          
+                    "eef_quat",                         
+                    "actions" 
                 ],
                 "rgb": [],
                 "depth": [],

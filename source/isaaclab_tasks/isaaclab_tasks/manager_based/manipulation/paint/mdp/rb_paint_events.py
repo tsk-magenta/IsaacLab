@@ -76,7 +76,7 @@ def randomize_rb10_joints_by_gaussian_offset(
     robot_asset.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids)
     
     # 디버깅
-    print(f"Randomized {len(rb10_joint_indices)} RB10 joints")
+    # print(f"Randomized {len(rb10_joint_indices)} RB10 joints")
 
 # randomize_gripper_joints_by_gaussian_offset 함수는 이제 위 randomize_rb10_joints_by_gaussian_offset에 통합되므로 제거합니다.
 # 만약 그리퍼 관절만 따로 무작위화해야 하는 특정 요구사항이 있다면, 별도로 함수를 만들고

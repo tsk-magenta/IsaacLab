@@ -9,4 +9,5 @@ from isaaclab.envs.mdp import *  # noqa: F401, F403
 
 from .observations import *  # noqa: F401, F403
 from .terminations import *  # noqa: F401, F403
-from .actions import SprayOnOffActionCfg, SprayOnOffAction
+from .dummy_action import DummyActionCfg
+# from .actions import SprayOnOffActionCfg, SprayOnOffAction

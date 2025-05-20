@@ -11,14 +11,15 @@ The Rainbow RB10 1300E is a 6-DOF industrial robot arm without a gripper. In thi
 
 ## Setup
 
-1. Make sure the Rainbow robot USD file is located at:
+1. Change the Rainbow robot USD file path in source/isaaclab_assets/isaaclab_assets/robots/rb.py:
    ```
-   C:\Users\tsk\Downloads\rainbow\rb10_1300e\rb10_1300e.usd
+   RB10_USD_PATH = "C:/Users/tsk/IsaacLab/source/isaaclab_assets/isaaclab_assets/robots/rb10_1300e_nozzle/urdf/rb10_1300e_nozzle/rb10_1300e_nozzle.usd" 
+
    ```
 
 2. The robot asset is defined in:
    ```
-   source/isaaclab_assets/isaaclab_assets/robots/rainbow.py
+   source/isaaclab_assets/isaaclab_assets/robots/rb.py
    ```
 
 3. The Paint task configuration is in:

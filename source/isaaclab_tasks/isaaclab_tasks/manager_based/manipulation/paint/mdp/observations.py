@@ -172,25 +172,25 @@ def ee_frame_quat(
     
     return eef_quat_w
 
-def spray_on_off_state(
-    env: ManagerBasedRLEnv,
-    spray_action_cfg_name: str = "spray_action"
-) -> torch.Tensor:
-    processed_spray_action = None
-    if hasattr(env, "action_manager") and env.action_manager is not None:
-        action_term_instance = env.action_manager.get_term(spray_action_cfg_name)
-        if action_term_instance is not None and hasattr(action_term_instance, 'processed_actions'):
-            processed_spray_action = action_term_instance.processed_actions
-        else:
-            omni.log.warn(f"Action term '{spray_action_cfg_name}' not found in ActionManager or has no 'processed_actions' attribute for spray_on_off_state.")
-    else:
-        omni.log.warn("ActionManager not found in environment or not yet initialized for spray_on_off_state.")
+# def spray_on_off_state(
+#     env: ManagerBasedRLEnv,
+#     spray_action_cfg_name: str = "spray_action"
+# ) -> torch.Tensor:
+#     processed_spray_action = None
+#     if hasattr(env, "action_manager") and env.action_manager is not None:
+#         action_term_instance = env.action_manager.get_term(spray_action_cfg_name)
+#         if action_term_instance is not None and hasattr(action_term_instance, 'processed_actions'):
+#             processed_spray_action = action_term_instance.processed_actions
+#         else:
+#             omni.log.warn(f"Action term '{spray_action_cfg_name}' not found in ActionManager or has no 'processed_actions' attribute for spray_on_off_state.")
+#     else:
+#         omni.log.warn("ActionManager not found in environment or not yet initialized for spray_on_off_state.")
 
-    if processed_spray_action is not None:
-        return processed_spray_action.float()
-    else:
-        omni.log.warn(f"Could not retrieve processed action for '{spray_action_cfg_name}' in spray_on_off_state. Returning zeros.")
-        return torch.zeros((env.num_envs, 1), device=env.device, dtype=torch.float32)
+#     if processed_spray_action is not None:
+#         return processed_spray_action.float()
+#     else:
+#         omni.log.warn(f"Could not retrieve processed action for '{spray_action_cfg_name}' in spray_on_off_state. Returning zeros.")
+#         return torch.zeros((env.num_envs, 1), device=env.device, dtype=torch.float32)
 
 
 

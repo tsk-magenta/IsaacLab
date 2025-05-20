@@ -81,12 +81,10 @@ class FrankaPaintEnvCfg(PaintEnvCfg):
         super().__post_init__()
 
         # Set events
+        self.events = EventCfg()
 
-        # self.scene.robot, self.scene.gripper, self.scene.gripper_constraint = create_rb10_with_panda_gripper(self.scene, RB10_1300E_CFG, PANDA_GRIPPER_CFG)
-        # Set Franka as robot
         self.scene.robot = RB10_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.robot.spawn.semantic_tags = [("class", "robot")]
-        self.events = EventCfg()
 
         config_directory = os.path.dirname(__file__)
         my_block_usd_path = os.path.join(config_directory, "block_hys_no_materials.usd")
@@ -104,25 +102,27 @@ class FrankaPaintEnvCfg(PaintEnvCfg):
             scale=0.5, 
             use_default_offset=True
         )
-
-        actual_robot_prim_path = "/World/envs/env_0/Robot"
-
-        self.actions.spray_action = mdp.SprayOnOffActionCfg(
-            asset_name="robot",
-            ee_frame_asset_name="ee_frame",
-            nozzle_tip_frame_name="end_effector",
-            projectile_prim_name="NozzleProjectile",
-            # projectile_type="Cube", # 기본값 사용 시 생략 가능
-            # projectile_scale=[0.02, 0.02, 0.02], # 기본값
-            # projectile_mass=0.01, # 기본값
-            projectile_parent_link_rel_path="link6", 
-            robot_prim_path_for_single_env=actual_robot_prim_path,
-            
-            # 새로운 설정값 (필요에 따라 여기서 오버라이드)
-            spray_interval=0.25,  # 0.25초 간격
-            max_projectiles=50,   # 최대 50개
-            custom_projectile_initial_speed=100.0 # 발사 속도 100
+        # spray_action 대신 dummy_action 추가
+        self.actions.dummy_action = mdp.dummy_action.DummyActionCfg(
+            asset_name="robot" # 더미 액션은 어떤 에셋에든 연결될 수 있습니다.
         )
+
+        # self.actions.spray_action = mdp.SprayOnOffActionCfg(
+        #     asset_name="robot",
+        #     ee_frame_asset_name="ee_frame",
+        #     nozzle_tip_frame_name="end_effector",
+        #     projectile_prim_name="NozzleProjectile",
+        #     # projectile_type="Cube", # 기본값 사용 시 생략 가능
+        #     # projectile_scale=[0.02, 0.02, 0.02], # 기본값
+        #     # projectile_mass=0.01, # 기본값
+        #     projectile_parent_link_rel_path="link6", 
+        #     robot_prim_path_for_single_env=actual_robot_prim_path,
+            
+        #     # 새로운 설정값 (필요에 따라 여기서 오버라이드)
+        #     spray_interval=0.25,  # 0.25초 간격
+        #     max_projectiles=50,   # 최대 50개
+        #     custom_projectile_initial_speed=100.0 # 발사 속도 100
+        # )
 
         # Listens to the required transforms
         marker_cfg = FRAME_MARKER_CFG.copy()
