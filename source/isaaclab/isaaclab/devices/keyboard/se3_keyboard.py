@@ -21,6 +21,7 @@ import omni.kit.app  # ✅ 프레임 업데이트용
 from pxr import UsdGeom, Gf, Usd, UsdShade, Sdf
 import random
 import math
+import torch
 
 
 class Se3Keyboard(DeviceBase):
@@ -60,10 +61,14 @@ class Se3Keyboard(DeviceBase):
         self._stopped_count = 0
         self._last_print_time = 0  # Track last time EEF position was printed
         self._current_eef_pos = None  # Store current end effector position
+        self._last_obv = None  # Store the last observation from env.step()
         
         # Make the stopped count globally accessible for termination functions
         if env is not None:
             env.keyboard_stopped_count = 0
+            # Store reference for later lookup
+            if not hasattr(env, 'keyboard'):
+                env.keyboard = self
 
     def __del__(self):
         self._input.unsubscribe_from_keyboard_events(self._keyboard, self._keyboard_sub)
@@ -241,50 +246,98 @@ class Se3Keyboard(DeviceBase):
 
     def _on_update(self, _e):
         """매 프레임마다 구체 생성 + 이동"""
-        # Get end effector position from environment if available
-        if self._env is not None:
-            try:
-                # Try different ways to access the observations based on environment type
-                obs = None
-                eef_world_pos = None
+        try:
+            # Check if particles are enabled and environment exists
+            if not self._is_creating_particles:
+                return
                 
-                # Method 1: Check if the environment has a get_observations method
-                if hasattr(self._env.unwrapped, 'get_observations'):
-                    obs = self._env.unwrapped.get_observations()
-                # Method 2: Try to access the most recent observation if available
-                elif hasattr(self._env, 'last_observations'):
-                    obs = self._env.last_observations
-                # Method 3: For FrankaPaintCustomEnv that might store observations differently
-                elif hasattr(self._env.unwrapped, 'last_obs'):
-                    obs = self._env.unwrapped.last_obs
+            # Get end effector position from environment if available
+            if self._env is not None:
+                # Debug timing
+                current_time = time.time()
                 
-                # Process observation if available
-                if obs is not None and isinstance(obs, dict):
-                    if "policy" in obs and "eef_pos" in obs["policy"]:
-                        # Get end effector position
-                        eef_world_pos = obs["policy"]["eef_pos"][0].cpu().numpy()
-                        self._current_eef_pos = eef_world_pos
+                # Method directly copying from record_demos.py line 413
+                try:
+                    # Try to get the most recent observation directly - this is what works in record_demos.py
+                    eef_world_pos = None
                     
-                # Alternative direct access if observation dictionary access failed
-                if eef_world_pos is None and hasattr(self._env.unwrapped, 'robot'):
-                    if hasattr(self._env.unwrapped.robot, 'eef_pos'):
-                        eef_world_pos = self._env.unwrapped.robot.eef_pos.cpu().numpy()
-                        self._current_eef_pos = eef_world_pos
-                
-                # Print position every second if we have it
-                if self._current_eef_pos is not None:
-                    current_time = time.time()
-                    if current_time - self._last_print_time >= 1.0:
-                        # print(f"[KB] EEF World Pos: [X={self._current_eef_pos[0]:.3f}, Y={self._current_eef_pos[1]:.3f}, Z={self._current_eef_pos[2]:.3f}]")
+                    # First check if we have a recent observation stored from record_demos.py
+                    if hasattr(self._env, 'last_obv') and self._env.last_obv is not None:
+                        # Use the same exact approach from record_demos.py
+                        obv = self._env.last_obv
+                        if isinstance(obv, tuple) and len(obv) > 0:
+                            obv = obv[0]  # First element might be the observation
+                            
+                        if isinstance(obv, dict) and "policy" in obv and "eef_pos" in obv["policy"]:
+                            eef_world_pos = obv["policy"]["eef_pos"][0].cpu().numpy()
+                            if current_time - self._last_print_time > 1.0:
+                                print(f"[KB DEBUG] Got EEF from env.last_obv")
+                    
+                    # If we still don't have a position, try to get it from observation_manager
+                    # This is our best fallback option
+                    if eef_world_pos is None and hasattr(self._env, 'observation_manager'):
+                        try:
+                            obv = self._env.observation_manager.compute_observations()
+                            if isinstance(obv, dict) and "policy" in obv and "eef_pos" in obv["policy"]:
+                                eef_world_pos = obv["policy"]["eef_pos"][0].cpu().numpy()
+                                if current_time - self._last_print_time > 1.0:
+                                    print(f"[KB DEBUG] Got EEF from observation_manager")
+                        except Exception as e:
+                            if current_time - self._last_print_time > 1.0:
+                                print(f"[KB DEBUG] Error with observation_manager: {e}")
+                    
+                    # Last resort: Use a fallback position
+                    if eef_world_pos is None:
+                        # Use the last known position if we have one
+                        if self._current_eef_pos is not None:
+                            eef_world_pos = self._current_eef_pos
+                            if current_time - self._last_print_time > 1.0:
+                                print("[KB DEBUG] Using last known EEF position")
+                        else:
+                            # Otherwise use a default position in front of the robot
+                            eef_world_pos = np.array([0.5, 0.0, 0.5])
+                            if current_time - self._last_print_time > 1.0:
+                                print("[KB DEBUG] Using default position (0.5, 0.0, 0.5)")
+                                
+                                # Only print diagnostics data once per second to avoid spamming
+                                print(f"[KB DEBUG] ENV TYPE: {type(self._env).__name__}")
+                                print(f"[KB DEBUG] Has last_obv: {hasattr(self._env, 'last_obv')}")
+                                if hasattr(self._env, 'last_obv'):
+                                    print(f"[KB DEBUG] last_obv type: {type(self._env.last_obv)}")
+                    
+                    # Log the position periodically
+                    if current_time - self._last_print_time > 1.0:
+                        print(f"[KB] eef_world_pos: {eef_world_pos}")
                         self._last_print_time = current_time
-            except Exception as e:
-                # Log the exception but continue execution
-                print(f"Error _on_update: {e}")
-                pass
+                    
+                    # Store the position for future reference 
+                    if eef_world_pos is not None:
+                        self._current_eef_pos = eef_world_pos
+                        
+                    # Move existing particles
+                    self._move_all_spheres()
+                    
+                    # Create new particles if we have a valid position
+                    if eef_world_pos is not None:
+                        # Create particles at end effector position
+                        self._particleCCC()
+                    
+                except Exception as e:
+                    # If there's an error getting EEF position, use a fallback
+                    print(f"Error getting EEF position: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    # Move existing particles even if we can't create new ones
+                    self._move_all_spheres()
+            else:
+                # If no environment is available, just move existing particles
+                print("Environment reference is None, cannot get EEF position")
+                self._move_all_spheres()
                 
-        if self._is_creating_particles:
-            self._particleCCC()  # 구체 생성
-        self._move_all_spheres()  # 구체 이동은 계속 진행
+        except Exception as e:
+            print(f"Error in _on_update: {e}")
+            import traceback
+            traceback.print_exc()
 
     def _move_all_spheres(self):
         for sphere_prim in self._spheres[:]:  # 리스트 복사 순회

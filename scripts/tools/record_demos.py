@@ -292,7 +292,10 @@ def main():
         device_name = device_name.lower()
         nonlocal running_recording_instance
         if device_name == "keyboard":
-            return Se3Keyboard(pos_sensitivity=0.2, rot_sensitivity=0.5)
+            # Explicitly pass the environment instance to the Se3Keyboard constructor
+            keyboard = Se3Keyboard(pos_sensitivity=0.2, rot_sensitivity=0.5, env=env)
+            print(f"Created Se3Keyboard with environment reference: {keyboard._env}")
+            return keyboard
         elif device_name == "spacemouse":
             return Se3SpaceMouse(pos_sensitivity=0.2, rot_sensitivity=0.5)
         elif "dualhandtracking_abs" in device_name and "GR1T2" in env.cfg.env_name:
@@ -402,6 +405,9 @@ def main():
                 # compute actions based on environment
                 actions = pre_process_actions(teleop_data, env.num_envs, env.device)
                 obv = env.step(actions)
+                
+                # Store the observation for the keyboard to use
+                env.last_obv = obv
                 
                 current_time = time.time()
                 if current_time - last_print_time >= 1.0:
