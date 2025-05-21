@@ -247,6 +247,8 @@ class Se3Keyboard(DeviceBase):
     def _on_update(self, _e):
         """매 프레임마다 구체 생성 + 이동"""
         try:
+            self._move_all_spheres()
+
             # Check if particles are enabled and environment exists
             if not self._is_creating_particles:
                 return
@@ -314,8 +316,6 @@ class Se3Keyboard(DeviceBase):
                     if eef_world_pos is not None:
                         self._current_eef_pos = eef_world_pos
                         
-                    # Move existing particles
-                    self._move_all_spheres()
                     
                     # Create new particles if we have a valid position
                     if eef_world_pos is not None:
@@ -328,11 +328,9 @@ class Se3Keyboard(DeviceBase):
                     import traceback
                     traceback.print_exc()
                     # Move existing particles even if we can't create new ones
-                    self._move_all_spheres()
             else:
                 # If no environment is available, just move existing particles
                 print("Environment reference is None, cannot get EEF position")
-                self._move_all_spheres()
                 
         except Exception as e:
             print(f"Error in _on_update: {e}")
