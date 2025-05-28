@@ -155,7 +155,8 @@ class TerminationsCfg:
         params={
             # "image_path": "franka_spray.png", # not working
             # "image_path": "C:/Users/tsk/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/paint/franka_spray.png",
-            "image_path": "paint/franka_spray.png",
+            # "image_path": "paint/franka_spray.png",
+            "image_path": "paint/franka_spray.jpg",
             "threshold": 90.0,
         }
     )
