@@ -37,6 +37,44 @@ def set_rb10_default_pose(
     asset = env.scene[asset_cfg.name]
     asset.data.default_joint_pos = torch.tensor(default_pose, device=env.device).repeat(env.num_envs, 1)
 
+def set_rb10_root_position(
+    env: ManagerBasedEnv,
+    env_ids: torch.Tensor,
+    pos: list[float] = [0.0, 0.0, 0.0],
+    rot: list[float] = [1.0, 0.0, 0.0, 0.0],
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+):
+    """Set the root position and orientation of the RB10 robot.
+    
+    Args:
+        env: Environment instance
+        env_ids: Environment IDs to modify
+        pos: Position [x, y, z] in world coordinates
+        rot: Rotation quaternion [w, x, y, z] in world coordinates
+        asset_cfg: Robot asset configuration
+    """
+    # Get the robot asset
+    robot_asset: Articulation = env.scene[asset_cfg.name]
+    
+    # Create pose tensor [pos, quat] from provided position and rotation
+    pose = torch.tensor(pos + rot, device=env.device)
+    
+    # Get default root state with zero velocity
+    zero_vel = torch.zeros(6, device=env.device)  # [lin_vel(3), ang_vel(3)]
+    
+    # Update default root state in data buffer
+    root_state = torch.cat([pose, zero_vel], dim=0)
+    robot_asset.data.default_root_state = root_state.repeat(env.num_envs, 1)
+    
+    # Apply to simulation 
+    if env_ids is None:
+        env_ids = torch.arange(env.num_envs, device=env.device)
+    
+    # Write pose to simulation
+    robot_asset.write_root_pose_to_sim(pose.unsqueeze(0).repeat(len(env_ids), 1), env_ids=env_ids)
+    
+    # Print confirmation
+    print(f"Set robot root position to {pos}")
 
 def randomize_rb10_joints_by_gaussian_offset(
     env: ManagerBasedEnv,
