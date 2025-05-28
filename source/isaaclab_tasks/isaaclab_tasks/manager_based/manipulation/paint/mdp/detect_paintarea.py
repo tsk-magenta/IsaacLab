@@ -14,7 +14,8 @@ def initialize_sam():
     global mask_generator
     
     # sam_checkpoint = "./sam_vit_b_01ec64.pth"  
-    sam_checkpoint = "C:/Users/tsk/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/paint/mdp/sam_vit_b_01ec64.pth"  
+    # sam_checkpoint = "C:/Users/tsk/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/paint/mdp/sam_vit_b_01ec64.pth"  
+    sam_checkpoint = "paint/sam_vit_b_01ec64.pth"  
     model_type = "vit_b" 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
@@ -35,9 +36,9 @@ def initialize_sam():
 
 def calculate_painting_completion_rate(image_path, output_folder="paintarea_results"):
    
-    if os.path.exists(output_folder):
-        shutil.rmtree(output_folder) 
-    os.makedirs(output_folder, exist_ok=True)
+    # if os.path.exists(output_folder):
+    #     shutil.rmtree(output_folder) 
+    # os.makedirs(output_folder, exist_ok=True)
     
     # Load the image
     image = cv2.imread(image_path)
@@ -214,9 +215,7 @@ def calculate_painting_completion_rate(image_path, output_folder="paintarea_resu
     plt.imshow(paint_mask, cmap='gray')
     plt.title('Paint Mask (K-means)')
     plt.axis('off')
-    plt.savefig(os.path.join(output_folder, "05_paint_mask_kmeans.png"), dpi=300)
-    """
-    
+    plt.savefig(os.path.join(output_folder, "05_paint_mask_kmeans.png"), dpi=300)  
    
     wall_gray = cv2.cvtColor(wall_only, cv2.COLOR_RGB2GRAY)
     edges = cv2.Canny(wall_gray, 50, 150)
@@ -231,11 +230,10 @@ def calculate_painting_completion_rate(image_path, output_folder="paintarea_resu
     plt.title('Paint Edge Detection')
     plt.axis('off')
     plt.savefig(os.path.join(output_folder, "06_paint_edges.png"), dpi=300)
-    
-   
+    """
+       
     final_paint_mask = paint_mask
-    
-    
+        
     kernel = np.ones((5, 5), np.uint8)
     final_paint_mask = cv2.morphologyEx(final_paint_mask, cv2.MORPH_OPEN, kernel)
     final_paint_mask = cv2.morphologyEx(final_paint_mask, cv2.MORPH_CLOSE, kernel)
