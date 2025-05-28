@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 from isaaclab.assets import Articulation, RigidObject
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import FrameTransformer
+from segment_anything import SamAutomaticMaskGenerator
 
 from typing import TYPE_CHECKING, List
 import isaaclab.utils.math as math_utils # math_utils 임포트 추가
@@ -24,6 +25,30 @@ import isaaclab.utils.math as math_utils # math_utils 임포트 추가
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 import omni.log
+
+from .detect_paintarea import calculate_painting_completion_rate
+
+def check_paintarea_completed(
+    env: ManagerBasedRLEnv,
+    image_path: str,
+    threshold: float = 90.0,
+) -> torch.Tensor:
+    completion_rate = calculate_painting_completion_rate(image_path=image_path)
+    
+    # Create a properly shaped tensor for the return value
+    result_tensor = torch.zeros((env.num_envs, 1), dtype=torch.bool, device=env.device)
+    
+    if completion_rate is None:
+        print("Failed to calculate completion rate: completion_rate is None")
+        return result_tensor  # Return all False
+    
+    print(f"Completion rate: {completion_rate}%")
+    
+    if completion_rate >= threshold:
+        # Set all values to True
+        result_tensor.fill_(True)
+    
+    return result_tensor
 
 # def cubes_stacked(
 #     env: ManagerBasedRLEnv,
@@ -144,7 +169,7 @@ def eef_near_myblock_target(
     env: "ManagerBasedRLEnv",
     eef_frame_cfg: SceneEntityCfg = SceneEntityCfg("ee_frame"),
     myblock_cfg: SceneEntityCfg = SceneEntityCfg("myblock"), # MyBlock 설정 추가
-    target_local_pos: List[float] = [0.0, 0.0, 0.0], # 로컬 오프셋을 파라미터로 받음
+    target_local_pos = [0.0, 0.0, 0.0], # 로컬 오프셋을 파라미터로 받음
     threshold: float = 0.03,
 ) -> torch.Tensor:
     """Check if the EEF is within the threshold distance to a specified local point on MyBlock."""
@@ -179,212 +204,3 @@ def eef_near_myblock_target(
 
 # terminations.py 파일
 
-# ... (import 등) ...
-
-# def eef_near_target_for_duration(
-#     env: "ManagerBasedRLEnv",
-#     eef_frame_cfg: SceneEntityCfg = SceneEntityCfg("ee_frame"),
-#     myblock_cfg: SceneEntityCfg = SceneEntityCfg("myblock"),
-#     target_local_pos: List[float] = [0.0, 0.0, 0.0],
-#     threshold: float = 0.03,
-#     duration: float = 2.0, # 목표 유지 시간 (초)
-#     scale: List[float] = [1.0, 1.0, 1.0],
-# ) -> torch.Tensor:
-#     """Check if the EEF has been near the target for a specified duration."""
-#     if not hasattr(env, "eef_near_target_counter"):
-#         # ... (기존 에러 처리) ...
-#         print("[Warning] env.eef_near_target_counter not found...")
-#         return torch.zeros(env.num_envs, device=env.device, dtype=torch.bool)
-
-#     # ... (객체 인스턴스, 포즈 가져오기, 월드 좌표 변환, 거리 계산 - 기존과 동일) ...
-#     ee_frame: FrameTransformer = env.scene[eef_frame_cfg.name]
-#     myblock: RigidObject = env.scene[myblock_cfg.name]
-#     num_envs = env.num_envs
-#     device = env.device
-#     myblock_pos_w = myblock.data.root_pos_w
-#     myblock_quat_w = myblock.data.root_quat_w
-#     eef_pos_w = ee_frame.data.target_pos_w[:, 0, :]
-#     target_local_pos_tensor = torch.tensor(target_local_pos, device=device, dtype=torch.float32)
-#     target_local_pos_expanded = target_local_pos_tensor.unsqueeze(0).expand(num_envs, -1)
-#     target_world_pos = math_utils.quat_apply(myblock_quat_w, target_local_pos_expanded) + myblock_pos_w
-#     distance = torch.linalg.vector_norm(eef_pos_w - target_world_pos, dim=1)
-#     is_near = distance < threshold # shape: (num_envs,) bool
-
-#     # 카운터 업데이트
-#     current_counter = env.eef_near_target_counter
-#     new_counter = (current_counter + 1) * is_near.int()
-#     env.eef_near_target_counter[:] = new_counter
-
-#     # 필요한 연속 스텝 수 계산
-#     required_steps = int(duration / env.physics_dt) # 정수로 변환
-
-#     # --- 경과 시간 출력 로직 추가 ---
-#     # is_near가 True이고, 카운터가 0보다 크고, 아직 최종 도달은 아닌 환경 인덱스 찾기
-#     ongoing_envs = torch.where(is_near & (new_counter > 0) & (new_counter < required_steps))[0]
-#     if len(ongoing_envs) > 0:
-#         # 해당 환경들의 경과 시간 계산 (카운터 * dt)
-#         elapsed_time = new_counter[ongoing_envs] * env.physics_dt
-#         for idx, env_id in enumerate(ongoing_envs):
-#             print(f"Env {env_id.item()}: Approaching target... Hold time: {elapsed_time[idx]:.2f} / {duration:.2f} sec")
-#     # -------------------------------
-
-#     # 종료 조건 확인
-#     terminated = new_counter >= required_steps
-
-#     # --- 최종 성공 메시지 출력 로직 추가 ---
-#     # 이번 스텝에서 새로 종료 조건을 만족한 환경 인덱스 찾기
-#     newly_terminated_envs = torch.where(terminated & (current_counter < required_steps))[0]
-#     if len(newly_terminated_envs) > 0:
-#         for env_id in newly_terminated_envs:
-#             print(f"Env {env_id.item()}: Target hold SUCCESS! Reached {duration:.2f} seconds.")
-#     # -----------------------------------
-
-#     return terminated
-
-# def eef_near_myblock_target(
-#     env: "ManagerBasedRLEnv",
-#     eef_frame_cfg: SceneEntityCfg = SceneEntityCfg("ee_frame"),
-#     myblock_cfg: SceneEntityCfg = SceneEntityCfg("myblock"),
-#     target_local_pos: List[float] = [0.0, 0.0, 0.0],
-#     threshold: float = 0.03,
-#     scale: List[float] = [1.0, 1.0, 1.0], # 스케일 파라미터는 유지
-# ) -> torch.Tensor:
-#     """Check if the EEF is within the threshold distance to a specified local point on MyBlock."""
-#     # 객체 인스턴스 가져오기
-#     ee_frame: FrameTransformer = env.scene[eef_frame_cfg.name]
-#     myblock: RigidObject = env.scene[myblock_cfg.name]
-#     num_envs = env.num_envs
-#     device = env.device
-
-#     # 현재 월드 포즈 가져오기
-#     myblock_pos_w = myblock.data.root_pos_w
-#     myblock_quat_w = myblock.data.root_quat_w
-#     eef_pos_w = ee_frame.data.target_pos_w[:, 0, :]
-
-#     # 로컬 타겟 위치를 텐서로 변환하고 확장# 변경 전
-
-#     # 변경 후
-#     if isinstance(target_local_pos, torch.Tensor):
-#         # 이미 텐서인 경우 복사 생성
-#         target_local_pos_tensor = target_local_pos.to(device=device, dtype=torch.float32)
-#     else:
-#         # 리스트나 다른 타입인 경우 새 텐서 생성
-#         target_local_pos_tensor = torch.tensor(target_local_pos, device=device, dtype=torch.float32)
-#     target_local_pos_expanded = target_local_pos_tensor.unsqueeze(0).expand(num_envs, -1)
-
-#     # 스케일 적용 로직
-#     scale_tensor = torch.tensor(scale, device=device, dtype=torch.float32)
-#     scale_expanded = scale_tensor.unsqueeze(0).expand(num_envs, -1)
-#     scaled_local_pos = target_local_pos_expanded * scale_expanded
-
-#     # 스케일이 적용된 로컬 좌표를 월드 좌표로 변환
-#     rotated_offset = math_utils.quat_apply(myblock_quat_w, scaled_local_pos)
-#     target_world_pos = rotated_offset + myblock_pos_w
-
-#     # 거리 계산
-#     distance = torch.linalg.vector_norm(eef_pos_w - target_world_pos, dim=1)
-
-#     # 거리가 임계값보다 작으면 True 반환 (스텝 카운팅 없음!)
-#     return distance < threshold
-
-# def eef_near_myblock_target(
-#     env: "ManagerBasedRLEnv",
-#     eef_frame_cfg: SceneEntityCfg = SceneEntityCfg("ee_frame"),
-#     myblock_cfg: SceneEntityCfg = SceneEntityCfg("myblock"),
-#     target_local_pos: List[float] = [0.0, 0.0, 0.0],
-#     threshold: float = 0.03,
-#     scale: List[float] = [1.0, 1.0, 1.0], # <-- scale 파라미터 추가
-# ) -> torch.Tensor:
-#     """Check if the EEF is within the threshold distance to a specified local point on MyBlock."""
-#     # 객체 인스턴스 가져오기
-#     ee_frame: FrameTransformer = env.scene[eef_frame_cfg.name]
-#     myblock: RigidObject = env.scene[myblock_cfg.name]
-#     num_envs = env.num_envs
-#     device = env.device
-
-#     # 현재 월드 포즈 가져오기
-#     myblock_pos_w = myblock.data.root_pos_w
-#     myblock_quat_w = myblock.data.root_quat_w
-#     eef_pos_w = ee_frame.data.target_pos_w[:, 0, :]
-
-#     # 로컬 타겟 위치를 텐서로 변환하고 확장
-#     target_local_pos_tensor = torch.tensor(target_local_pos, device=device, dtype=torch.float32)
-#     target_local_pos_expanded = target_local_pos_tensor.unsqueeze(0).expand(num_envs, -1)
-
-#     # --- 스케일 적용 로직 추가 ---
-#     scale_tensor = torch.tensor(scale, device=device, dtype=torch.float32)
-#     scale_expanded = scale_tensor.unsqueeze(0).expand(num_envs, -1)
-#     scaled_local_pos = target_local_pos_expanded * scale_expanded # 로컬 오프셋에 스케일 적용
-#     # --------------------------
-
-#     # 스케일이 적용된 로컬 좌표를 월드 좌표로 변환
-#     rotated_offset = math_utils.quat_apply(myblock_quat_w, scaled_local_pos) # <-- scaled_local_pos 사용
-#     target_world_pos = rotated_offset + myblock_pos_w
-
-#     # 거리 계산
-#     distance = torch.linalg.vector_norm(eef_pos_w - target_world_pos, dim=1) # 결과 shape: (num_envs,)
-
-#     # 거리가 임계값보다 작으면 True 반환
-#     return distance < threshold
-
-# # ... (다른 함수들) ...
-
-# def eef_near_target_for_duration(
-#     env: "ManagerBasedRLEnv",
-#     eef_frame_cfg: SceneEntityCfg = SceneEntityCfg("ee_frame"),
-#     myblock_cfg: SceneEntityCfg = SceneEntityCfg("myblock"),
-#     target_local_pos: List[float] = [0.0, 0.0, 0.0],
-#     threshold: float = 0.03,
-#     duration: float = 5.0, # 목표 유지 시간 (초) - 이전 코드에서 2.0이었으나 5.0으로 수정
-#     scale: List[float] = [1.0, 1.0, 1.0], # <-- scale 파라미터 추가
-# ) -> torch.Tensor:
-#     """Check if the EEF has been near the target for a specified duration."""
-#     if not hasattr(env, "eef_near_target_counter"):
-#         print("[Warning] env.eef_near_target_counter not found...")
-#         return torch.zeros(env.num_envs, device=env.device, dtype=torch.bool)
-
-#     # 객체 인스턴스 및 기본 정보 가져오기
-#     ee_frame: FrameTransformer = env.scene[eef_frame_cfg.name]
-#     myblock: RigidObject = env.scene[myblock_cfg.name]
-#     num_envs = env.num_envs
-#     device = env.device
-#     myblock_pos_w = myblock.data.root_pos_w
-#     myblock_quat_w = myblock.data.root_quat_w
-#     eef_pos_w = ee_frame.data.target_pos_w[:, 0, :]
-
-#     # 로컬 타겟 위치를 텐서로 변환하고 확장
-#     target_local_pos_tensor = torch.tensor(target_local_pos, device=device, dtype=torch.float32)
-#     target_local_pos_expanded = target_local_pos_tensor.unsqueeze(0).expand(num_envs, -1)
-
-#     # --- 스케일 적용 로직 추가 ---
-#     scale_tensor = torch.tensor(scale, device=device, dtype=torch.float32)
-#     scale_expanded = scale_tensor.unsqueeze(0).expand(num_envs, -1)
-#     scaled_local_pos = target_local_pos_expanded * scale_expanded # 로컬 오프셋에 스케일 적용
-#     # --------------------------
-
-#     # 스케일이 적용된 로컬 좌표를 월드 좌표로 변환
-#     rotated_offset = math_utils.quat_apply(myblock_quat_w, scaled_local_pos) # <-- scaled_local_pos 사용
-#     target_world_pos = rotated_offset + myblock_pos_w
-
-#     # 거리 계산 및 임계값 확인
-#     distance = torch.linalg.vector_norm(eef_pos_w - target_world_pos, dim=1)
-#     is_near = distance < threshold # shape: (num_envs,) bool
-
-#     # --- 이하 카운터 업데이트 및 확인 로직은 동일 ---
-#     current_counter = env.eef_near_target_counter
-#     new_counter = (current_counter + 1) * is_near.int()
-#     env.eef_near_target_counter[:] = new_counter
-#     required_steps = int(duration / env.physics_dt)
-#     ongoing_envs = torch.where(is_near & (new_counter > 0) & (new_counter < required_steps))[0]
-#     if len(ongoing_envs) > 0:
-#         elapsed_time = new_counter[ongoing_envs] * env.physics_dt
-#         for idx, env_id in enumerate(ongoing_envs):
-#             print(f"Env {env_id.item()}: Approaching target... Hold time: {elapsed_time[idx]:.2f} / {duration:.2f} sec")
-#     terminated = new_counter >= required_steps
-#     newly_terminated_envs = torch.where(terminated & (current_counter < required_steps))[0]
-#     if len(newly_terminated_envs) > 0:
-#         for env_id in newly_terminated_envs:
-#             print(f"Env {env_id.item()}: Target hold SUCCESS! Reached {duration:.2f} seconds.")
-#     # --------------------------------------------------
-
-#     return terminated

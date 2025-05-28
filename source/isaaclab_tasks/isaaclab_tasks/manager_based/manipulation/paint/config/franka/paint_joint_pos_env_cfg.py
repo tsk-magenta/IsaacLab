@@ -13,6 +13,7 @@ from isaaclab.sim.schemas.schemas_cfg import RigidBodyPropertiesCfg
 from isaaclab.sim.spawners.from_files.from_files_cfg import UsdFileCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
+from isaaclab.envs.mdp.actions.actions_cfg import JointPositionActionCfg
 
 
 from isaaclab_tasks.manager_based.manipulation.paint import mdp
@@ -61,6 +62,16 @@ class EventCfg:
         },
     )
 
+    # Add new event to set robot position on the ground
+    # set_robot_on_ground = EventTerm(
+    #     func=rb_paint_events.set_rb10_root_position,
+    #     mode="startup",
+    #     params={
+    #         "pos": [0.0, 0.0, 0.0],  # Position on the ground
+    #         "rot": [1.0, 0.0, 0.0, 0.0],  # No rotation (identity quaternion)
+    #     },
+    # )
+
     randomize_rb10_joint_state = EventTerm(
         func=rb_paint_events.randomize_rb10_joints_by_gaussian_offset, # RB10 로봇용 함수
         mode="reset",
@@ -90,13 +101,13 @@ class FrankaPaintEnvCfg(PaintEnvCfg):
         my_block_usd_path = os.path.join(config_directory, "block_hys_no_materials.usd")
 
         # Add semantics to table
-        self.scene.table.spawn.semantic_tags = [("class", "table")]
+        # self.scene.table.spawn.semantic_tags = [("class", "table")]
 
         # Add semantics to ground
         self.scene.plane.semantic_tags = [("class", "ground")]
         
         # Set actions for the specific robot type (franka)
-        self.actions.arm_action = mdp.JointPositionActionCfg(
+        self.actions.arm_action = JointPositionActionCfg(
             asset_name="robot", 
             joint_names=["base", "shoulder", "elbow", "wrist1", "wrist2", "wrist3"], 
             scale=0.5, 

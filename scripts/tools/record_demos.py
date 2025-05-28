@@ -105,6 +105,9 @@ from isaaclab.managers import DatasetExportMode
 import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils.parse_cfg import parse_env_cfg
 
+# Import SAM related functions
+from isaaclab_tasks.manager_based.manipulation.paint.mdp.detect_paintarea import initialize_sam, calculate_painting_completion_rate
+from segment_anything import SamAutomaticMaskGenerator
 
 class RateLimiter:
     """Convenience class for enforcing rates in loops."""
@@ -395,6 +398,9 @@ def main():
 
     subtasks = {}
 
+    # Initialize SAM mask generator
+    initialize_sam()
+
     with contextlib.suppress(KeyboardInterrupt) and torch.inference_mode():
         while simulation_app.is_running():
             # get data from teleop device
@@ -543,6 +549,7 @@ def main():
                                 [0], torch.tensor([[True]], dtype=torch.bool, device=env.device)
                             )
                             env.recorder_manager.export_episodes([0])
+
                             should_reset_recording_instance = True
                 else:
                     success_step_count = 0
