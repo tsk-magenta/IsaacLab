@@ -106,8 +106,7 @@ import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils.parse_cfg import parse_env_cfg
 
 # Import SAM related functions
-from isaaclab_tasks.manager_based.manipulation.paint.mdp.detect_paintarea import initialize_sam, calculate_painting_completion_rate
-from segment_anything import SamAutomaticMaskGenerator
+from isaaclab_tasks.manager_based.manipulation.paint.mdp.detect_paintarea import initialize_sam
 
 class RateLimiter:
     """Convenience class for enforcing rates in loops."""
