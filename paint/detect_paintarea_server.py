@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import cv2
 import torch
@@ -303,13 +304,19 @@ def run_tcp_server(host='0.0.0.0', port=65432):
     server_socket.listen(5)
     print(f"Server listening on {host}:{port}")
 
+    server_socket.settimeout(1.0)  # Add timeout
+
     while True:
         try:
+            print(f"\n[{time.strftime('%H:%M:%S')}] Waiting for connection...")
             client_socket, addr = server_socket.accept()
+            client_socket.settimeout(1.0)  # Client timeout too
             print(f"Accepted connection from {addr}")
             # Handle client connection in a new thread or process for concurrency
             # For simplicity, handling sequentially here. For production, use threading/asyncio.
             handle_client(client_socket)
+        except socket.timeout:
+            continue  # Check running flag again
         except KeyboardInterrupt:
             print("Server shutting down.")
             break
