@@ -1,8 +1,7 @@
-# Copyright (c) 2024-2025, The Isaac Lab Project Developers.
+# Copyright (c) 2022-2025, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
-
 """Script to replay demonstrations with Isaac Lab environments."""
 
 """Launch Isaac Sim Simulator first."""
@@ -1178,7 +1177,7 @@ def main():
         episode_indices_to_replay = list(range(episode_count))
 
     if args_cli.task is not None:
-        env_name = args_cli.task
+        env_name = args_cli.task.split(":")[-1]
     if env_name is None:
         raise ValueError("Task/env name was not specified nor found in the dataset.")
 
@@ -1191,7 +1190,7 @@ def main():
     env_cfg.terminations = {}
 
     # create environment from loaded config
-    env = gym.make(env_name, cfg=env_cfg).unwrapped
+    env = gym.make(args_cli.task, cfg=env_cfg).unwrapped
 
     # Initialize particle system if enabled
     particle_system = None
