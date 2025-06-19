@@ -397,7 +397,7 @@ def main():
     subtasks = {}
 
     # Initialize SAM mask generator
-    initialize_sam()
+    # initialize_sam()
 
     with contextlib.suppress(KeyboardInterrupt) and torch.inference_mode():
         while simulation_app.is_running():

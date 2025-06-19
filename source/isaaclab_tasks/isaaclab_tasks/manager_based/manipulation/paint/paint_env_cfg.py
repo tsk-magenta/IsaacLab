@@ -150,16 +150,17 @@ class TerminationsCfg:
     """Termination terms for the MDP."""
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
 
-    success = DoneTerm(
-        func=mdp.check_paintarea_completed,
-        params={
-            # "image_path": "franka_spray.png", # not working
-            # "image_path": "C:/Users/tsk/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/paint/franka_spray.png",
-            # "image_path": "paint/franka_spray.png",
-            "image_path": "paint/franka_spray.jpg",
-            "threshold": 90.0,
-        }
-    )
+    # check if paint area is completed
+    # success = DoneTerm(
+    #     func=mdp.check_paintarea_completed,
+    #     params={
+    #         # "image_path": "franka_spray.png", # not working
+    #         # "image_path": "C:/Users/tsk/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/paint/franka_spray.png",
+    #         # "image_path": "paint/franka_spray.png",
+    #         "image_path": "paint/franka_spray.jpg",
+    #         "threshold": 90.0,
+    #     }
+    # )
 
     # 새로운 종료 조건 - 모든 서브태스크 완료 확인
     # success = DoneTerm(
