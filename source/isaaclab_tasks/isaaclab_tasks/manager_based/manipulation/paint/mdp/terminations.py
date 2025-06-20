@@ -28,6 +28,28 @@ import omni.log
 
 from .detect_paintarea import calculate_painting_completion_rate
 
+def check_paint_completed(
+    env: "ManagerBasedRLEnv",
+    threshold: int = 2000,
+) -> torch.Tensor:
+    """
+    Checks if the number of particles is greater than the threshold for each environment.
+    Returns a boolean tensor of shape (num_envs, 1).
+    """
+    # Assume env has an attribute 'keyboard_stopped_count' of shape (num_envs,) or a scalar
+    if not hasattr(env, "keyboard_stopped_count"):
+        raise AttributeError("Environment does not have 'keyboard_stopped_count' attribute.")
+
+    count = env.keyboard_stopped_count
+    import torch
+
+    # If count is a scalar (int, float, or bool), convert to tensor
+    if not isinstance(count, torch.Tensor):
+        count = torch.tensor([count], device=env.device if hasattr(env, "device") else None)
+
+    result_tensor = (count >= threshold).bool().unsqueeze(-1)
+    return result_tensor
+
 def check_paintarea_completed(
     env: ManagerBasedRLEnv,
     image_path: str,

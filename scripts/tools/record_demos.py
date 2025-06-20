@@ -512,25 +512,25 @@ def main():
                         # print(f"3. All Subtasks Status: {status_str}")
                     
                     # --- 5. Terminations 완료 시 성공 메시지 ---
-                    if success_term is not None:
-                        try:
-                            success_result = success_term.func(env, **success_term.params)
-                            if success_result.numel() > 0 and bool(success_result[0]):
-                                if not hasattr(env, '_success_message_shown'):
-                                    env._success_message_shown = False
+                    # if success_term is not None:
+                    #     try:
+                    #         success_result = success_term.func(env, **success_term.params)
+                    #         if success_result.numel() > 0 and bool(success_result[0]):
+                    #             if not hasattr(env, '_success_message_shown'):
+                    #                 env._success_message_shown = False
                                 
-                                if not env._success_message_shown:
-                                    print("\n" + "="*50)
-                                    print("🎉🎉🎉 TASK COMPLETED SUCCESSFULLY! 🎉🎉🎉")
-                                    print("="*50 + "\n")
-                                    env._success_message_shown = True
+                    #             if not env._success_message_shown:
+                    #                 print("\n" + "="*50)
+                    #                 print("🎉🎉🎉 TASK COMPLETED SUCCESSFULLY! 🎉🎉🎉")
+                    #                 print("="*50 + "\n")
+                    #                 env._success_message_shown = True
                                 
-                                # 성공 단계 카운트 출력
-                                print(f"5. Success Steps: {success_step_count}/{args_cli.num_success_steps}")
-                            elif hasattr(env, '_success_message_shown'):
-                                env._success_message_shown = False
-                        except Exception as e:
-                            print(f"Error checking success condition: {e}")
+                    #             # 성공 단계 카운트 출력
+                    #             print(f"5. Success Steps: {success_step_count}/{args_cli.num_success_steps}")
+                    #         elif hasattr(env, '_success_message_shown'):
+                    #             env._success_message_shown = False
+                    #     except Exception as e:
+                    #         print(f"Error checking success condition: {e}")
                     
                     # 마지막 출력 시간 갱신
                     last_print_time = current_time

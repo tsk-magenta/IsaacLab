@@ -150,6 +150,13 @@ class TerminationsCfg:
     """Termination terms for the MDP."""
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
 
+    success = DoneTerm(
+        func=mdp.check_paint_completed,
+        params={
+            "threshold": 2100,
+        }
+    )
+
     # check if paint area is completed
     # success = DoneTerm(
     #     func=mdp.check_paintarea_completed,
