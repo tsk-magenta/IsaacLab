@@ -85,6 +85,7 @@ class ObservationsCfg:
         joint_vel = ObsTerm(func=mdp.joint_vel_rel)
         eef_pos = ObsTerm(func=mdp.ee_frame_pos)
         eef_quat = ObsTerm(func=mdp.ee_frame_quat)
+        spray = ObsTerm(func=mdp.spray)
         eef_to_current_target_dist = ObsTerm(
             func=mdp.eef_to_myblock_current_target_dist,
             params={

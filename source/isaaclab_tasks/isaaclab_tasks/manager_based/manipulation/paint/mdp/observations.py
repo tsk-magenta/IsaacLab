@@ -22,7 +22,38 @@ import isaaclab.utils.math as math_utils
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
+# Global variable to track keyboard spray state - can be set from outside the environment
+_KEYBOARD_IS_CREATING_PARTICLES = False
 
+def set_keyboard_spray_state(state: bool):
+    """Set the global keyboard spray state.
+    This function can be called from outside the environment to update the state.
+    
+    Args:
+        state: The new state (True for enabled, False for disabled).
+    """
+    global _KEYBOARD_IS_CREATING_PARTICLES
+    _KEYBOARD_IS_CREATING_PARTICLES = state
+    print(f"Updated global keyboard spray state to: {_KEYBOARD_IS_CREATING_PARTICLES}")
+
+def spray(env: "ManagerBasedRLEnv", robot_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Determine if spray particles should be shown.
+    
+    Returns:
+        torch.Tensor: Boolean tensor based on the keyboard's _is_creating_particles state.
+        
+    Note:
+        This function returns a boolean tensor based on the global _KEYBOARD_IS_CREATING_PARTICLES
+        variable, which needs to be updated from outside using set_keyboard_spray_state().
+    """
+    # Use the global keyboard state
+    global _KEYBOARD_IS_CREATING_PARTICLES
+    
+    # Create a tensor filled with the global state
+    spray_state = torch.full((env.num_envs, 1), _KEYBOARD_IS_CREATING_PARTICLES, 
+                            dtype=torch.bool, device=env.device)
+    
+    return spray_state
 
 def eef_to_myblock_current_target_dist(
     env: ManagerBasedRLEnv,
@@ -192,16 +223,6 @@ def ee_frame_quat(
 #         omni.log.warn(f"Could not retrieve processed action for '{spray_action_cfg_name}' in spray_on_off_state. Returning zeros.")
 #         return torch.zeros((env.num_envs, 1), device=env.device, dtype=torch.float32)
 
-
-
-
-
-
-
-
-
-
-
 ##############################
 def gripper_pos(env: ManagerBasedRLEnv, robot_cfg: SceneEntityCfg = SceneEntityCfg("gripper")) -> torch.Tensor:
     """Update to use the gripper asset instead of robot asset."""
@@ -210,6 +231,13 @@ def gripper_pos(env: ManagerBasedRLEnv, robot_cfg: SceneEntityCfg = SceneEntityC
     finger_joint_2 = -1 * gripper.data.joint_pos[:, 1].clone().unsqueeze(1)
 
     return torch.cat((finger_joint_1, finger_joint_2), dim=1)
+
+# def gripper_pos(env: ManagerBasedRLEnv, robot_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+#     robot: Articulation = env.scene[robot_cfg.name]
+#     finger_joint_1 = robot.data.joint_pos[:, -1].clone().unsqueeze(1)
+#     finger_joint_2 = -1 * robot.data.joint_pos[:, -2].clone().unsqueeze(1)
+
+#     return torch.cat((finger_joint_1, finger_joint_2), dim=1)
 
 def cube_positions_in_world_frame(
     env: ManagerBasedRLEnv,
@@ -449,14 +477,6 @@ def instance_randomize_object_obs(
 #     ee_frame_quat = ee_frame.data.target_quat_w[:, 0, :]
 
 #     return ee_frame_quat
-
-
-def gripper_pos(env: ManagerBasedRLEnv, robot_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
-    robot: Articulation = env.scene[robot_cfg.name]
-    finger_joint_1 = robot.data.joint_pos[:, -1].clone().unsqueeze(1)
-    finger_joint_2 = -1 * robot.data.joint_pos[:, -2].clone().unsqueeze(1)
-
-    return torch.cat((finger_joint_1, finger_joint_2), dim=1)
 
 
 def object_grasped(
