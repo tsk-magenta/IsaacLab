@@ -559,6 +559,10 @@ def main():
                 print(label_text)
 
             if should_reset_recording_instance:
+                print("Resetting recording instance...")
+                if hasattr(env, "keyboard") and hasattr(env.keyboard, "reset"):
+                    env.keyboard._is_creating_particles = False  # Stop particle generation
+                    env.keyboard.reset()
                 env.sim.reset()
                 env.recorder_manager.reset()
                 env.reset()

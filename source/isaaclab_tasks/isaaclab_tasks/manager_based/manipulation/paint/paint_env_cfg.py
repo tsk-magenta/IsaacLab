@@ -153,7 +153,7 @@ class TerminationsCfg:
     success = DoneTerm(
         func=mdp.check_paint_completed,
         params={
-            "threshold": 2100,
+            "threshold": 2000,
         }
     )
 
