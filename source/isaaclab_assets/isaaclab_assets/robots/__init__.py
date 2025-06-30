@@ -1,26 +1,67 @@
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# Copyright (c) 2024-2025, The Isaac Lab Project Developers.
 # All rights reserved.
 #
-# SPDX-License-Identifier: BSD-3-Clause
+# SPDX-License-Identifier: Apache-2.0
 
+"""Sub-package with environment wrappers for Isaac Lab Mimic."""
+
+import gymnasium as gym
+
+from isaaclab_mimic.envs.franka_stack_ik_abs_mimic_env import FrankaCubeStackIKAbsMimicEnv
+from .franka_stack_ik_abs_mimic_env_cfg import FrankaCubeStackIKAbsMimicEnvCfg
+from .franka_stack_ik_rel_blueprint_mimic_env_cfg import FrankaCubeStackIKRelBlueprintMimicEnvCfg
+from .franka_stack_ik_rel_mimic_env import FrankaCubeStackIKRelMimicEnv
+from .franka_stack_ik_rel_mimic_env_cfg import FrankaCubeStackIKRelMimicEnvCfg
+from .franka_stack_ik_rel_visuomotor_mimic_env_cfg import FrankaCubeStackIKRelVisuomotorMimicEnvCfg
+# from .my_franka_stack_mimic_env import MyFrankaStackMimicEnv
+# from .my_stack_mimic_env_cfg import MyFrankaStackMimicEnvCfg
+from .my_rb_mimic_env_cfg import MyRbPaintMimicEnvCfg
+from .my_rb_mimic_env import MyRBPaintMimicEnv
 ##
-# Configuration for different assets.
+# Inverse Kinematics - Relative Pose Control
 ##
 
-from .allegro import *
-from .ant import *
-from .anymal import *
-from .cart_double_pendulum import *
-from .cartpole import *
-from .fourier import *
-from .franka import *
-from .humanoid import *
-from .humanoid_28 import *
-from .kinova import *
-from .quadcopter import *
-from .ridgeback_franka import *
-from .sawyer import *
-from .shadow_hand import *
-from .spot import *
-from .unitree import *
-from .universal_robots import *
+# gym.register(
+#     id="Isaac-Stack-Cube-Franka-IK-Rel-Mimic-v0",
+#     entry_point="isaaclab_mimic.envs:MyFrankaStackMimicEnv",
+#     kwargs={
+#         "env_cfg_entry_point": my_stack_mimic_env_cfg.MyFrankaStackMimicEnvCfg,
+#     },
+#     disable_env_checker=True,
+# )
+
+# gym.register(
+#     id="Isaac-Paint-RB10-IK-Rel-Mimic-v0",
+#     entry_point="isaaclab_mimic.envs:MyRBPaintMimicEnv",
+#     kwargs={
+#         "env_cfg_entry_point": my_rb_mimic_env_cfg.MyRbPaintMimicEnvCfg,
+#     },
+#     disable_env_checker=True,
+# )
+
+gym.register(
+    id="Isaac-Stack-Cube-Franka-IK-Rel-Blueprint-Mimic-v0",
+    entry_point="isaaclab_mimic.envs:FrankaCubeStackIKRelMimicEnv",
+    kwargs={
+        "env_cfg_entry_point": franka_stack_ik_rel_blueprint_mimic_env_cfg.FrankaCubeStackIKRelBlueprintMimicEnvCfg,
+    },
+    disable_env_checker=True,
+)
+
+gym.register(
+    id="Isaac-Stack-Cube-Franka-IK-Abs-Mimic-v0",
+    entry_point="isaaclab_mimic.envs:FrankaCubeStackIKAbsMimicEnv",
+    kwargs={
+        "env_cfg_entry_point": franka_stack_ik_abs_mimic_env_cfg.FrankaCubeStackIKAbsMimicEnvCfg,
+    },
+    disable_env_checker=True,
+)
+
+gym.register(
+    id="Isaac-Stack-Cube-Franka-IK-Rel-Visuomotor-Mimic-v0",
+    entry_point="isaaclab_mimic.envs:FrankaCubeStackIKRelMimicEnv",
+    kwargs={
+        "env_cfg_entry_point": franka_stack_ik_rel_visuomotor_mimic_env_cfg.FrankaCubeStackIKRelVisuomotorMimicEnvCfg,
+    },
+    disable_env_checker=True,
+)

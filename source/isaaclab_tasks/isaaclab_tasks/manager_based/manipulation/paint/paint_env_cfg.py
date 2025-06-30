@@ -43,16 +43,16 @@ class ObjectTableSceneCfg(InteractiveSceneCfg):
     ee_frame: FrameTransformerCfg = MISSING
 
     # Table
-    # table = AssetBaseCfg(
-    #     prim_path="{ENV_REGEX_NS}/Table",
-    #     init_state=AssetBaseCfg.InitialStateCfg(pos=[0.5, 0, 0], rot=[0.707, 0, 0, 0.707]),
-    #     spawn=UsdFileCfg(usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd"),
-    # )
+    table = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/Table",
+        init_state=AssetBaseCfg.InitialStateCfg(pos=[0.5, 0, 0], rot=[0.707, 0, 0, 0.707]),
+        spawn=UsdFileCfg(usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd"),
+    )
 
     # plane
     plane = AssetBaseCfg(
         prim_path="/World/GroundPlane",
-        init_state=AssetBaseCfg.InitialStateCfg(pos=[0, 0, 0]), # pos=[0, 0, -1.05]
+        init_state=AssetBaseCfg.InitialStateCfg(pos=[0, 0, -1.05]),
         spawn=GroundPlaneCfg(),
     )
 
@@ -85,7 +85,6 @@ class ObservationsCfg:
         joint_vel = ObsTerm(func=mdp.joint_vel_rel)
         eef_pos = ObsTerm(func=mdp.ee_frame_pos)
         eef_quat = ObsTerm(func=mdp.ee_frame_quat)
-        spray = ObsTerm(func=mdp.spray)
         eef_to_current_target_dist = ObsTerm(
             func=mdp.eef_to_myblock_current_target_dist,
             params={
@@ -151,25 +150,6 @@ class TerminationsCfg:
     """Termination terms for the MDP."""
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
 
-    success = DoneTerm(
-        func=mdp.check_paint_completed,
-        params={
-            "threshold": 2000,
-        }
-    )
-
-    # check if paint area is completed
-    # success = DoneTerm(
-    #     func=mdp.check_paintarea_completed,
-    #     params={
-    #         # "image_path": "franka_spray.png", # not working
-    #         # "image_path": "C:/Users/tsk/IsaacLab/source/isaaclab_tasks/isaaclab_tasks/manager_based/manipulation/paint/franka_spray.png",
-    #         # "image_path": "paint/franka_spray.png",
-    #         "image_path": "paint/franka_spray.jpg",
-    #         "threshold": 90.0,
-    #     }
-    # )
-
     # 새로운 종료 조건 - 모든 서브태스크 완료 확인
     # success = DoneTerm(
     #     func=mdp.check_all_subtasks_completed,
@@ -179,15 +159,15 @@ class TerminationsCfg:
     #         "threshold": ths,
     #     }
     # )
-    # success = DoneTerm(
-    #     func=mdp.check_eef_near_myblock_target,
-    #     params={
-    #         "eef_frame_cfg": SceneEntityCfg("ee_frame"),
-    #         "myblock_cfg": SceneEntityCfg("myblock"),
-    #         "target_local_pos": TARGET_LOCATIONS["target2"],  # 마지막 타겟(approach2) 위치
-    #         "threshold": ths,
-    #     }
-    # )
+    success = DoneTerm(
+        func=mdp.check_eef_near_myblock_target,
+        params={
+            "eef_frame_cfg": SceneEntityCfg("ee_frame"),
+            "myblock_cfg": SceneEntityCfg("myblock"),
+            "target_local_pos": TARGET_LOCATIONS["target2"],  # 마지막 타겟(approach2) 위치
+            "threshold": ths,
+        }
+    )
    
 
 

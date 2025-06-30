@@ -1,7 +1,8 @@
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
+# Copyright (c) 2024-2025, The Isaac Lab Project Developers.
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
+
 """
 Script to record demonstrations with Isaac Lab environments using human teleoperation.
 
@@ -104,15 +105,6 @@ from isaaclab.managers import DatasetExportMode
 import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils.parse_cfg import parse_env_cfg
 
-# Import SAM related functions
-try:
-    from isaaclab_tasks.manager_based.manipulation.paint.mdp.detect_paintarea import initialize_sam
-except ImportError:
-    print("[WARNING] Paint area detection module not found. Using placeholder function.")
-    def initialize_sam(*args, **kwargs):
-        """Placeholder function for SAM initialization"""
-        print("SAM initialization placeholder - paint detection disabled")
-        return None
 
 class RateLimiter:
     """Convenience class for enforcing rates in loops."""
@@ -212,7 +204,7 @@ def main():
 
     # parse configuration
     env_cfg = parse_env_cfg(args_cli.task, device=args_cli.device, num_envs=1)
-    env_cfg.env_name = args_cli.task.split(":")[-1]
+    env_cfg.env_name = args_cli.task
 
     # extract success checking function to invoke in the main loop
     success_term = None
@@ -300,10 +292,7 @@ def main():
         device_name = device_name.lower()
         nonlocal running_recording_instance
         if device_name == "keyboard":
-            # Explicitly pass the environment instance to the Se3Keyboard constructor
-            keyboard = Se3Keyboard(pos_sensitivity=0.2, rot_sensitivity=0.5, env=env)
-            print(f"Created Se3Keyboard with environment reference: {keyboard._env}")
-            return keyboard
+            return Se3Keyboard(pos_sensitivity=0.2, rot_sensitivity=0.5)
         elif device_name == "spacemouse":
             return Se3SpaceMouse(pos_sensitivity=0.2, rot_sensitivity=0.5)
         elif "dualhandtracking_abs" in device_name and "GR1T2" in env.cfg.env_name:
@@ -403,9 +392,6 @@ def main():
 
     subtasks = {}
 
-    # Initialize SAM mask generator
-    # initialize_sam()
-
     with contextlib.suppress(KeyboardInterrupt) and torch.inference_mode():
         while simulation_app.is_running():
             # get data from teleop device
@@ -417,15 +403,12 @@ def main():
                 actions = pre_process_actions(teleop_data, env.num_envs, env.device)
                 obv = env.step(actions)
                 
-                # Store the observation for the keyboard to use
-                env.last_obv = obv
-                
                 current_time = time.time()
                 if current_time - last_print_time >= 1.0:
                     # --- 1. 로봇의 EEF 월드 좌표 출력 ---
                     if isinstance(obv[0], dict) and "policy" in obv[0] and "eef_pos" in obv[0]["policy"]:
                         eef_world_pos = obv[0]["policy"]["eef_pos"][0].cpu().numpy()
-                        # print(f"1. EEF World Pos: [X={eef_world_pos[0]:.3f}, Y={eef_world_pos[1]:.3f}, Z={eef_world_pos[2]:.3f}]")
+                        print(f"1. EEF World Pos: [X={eef_world_pos[0]:.3f}, Y={eef_world_pos[1]:.3f}, Z={eef_world_pos[2]:.3f}]")
                     
                     # --- 2. 현재 Target의 World 좌표 출력 ---
                     # 현재 타겟 인덱스 확인
@@ -473,7 +456,7 @@ def main():
                                         
                                         # 월드 좌표 출력
                                         target_world_pos_np = target_world_pos.numpy()
-                                        # print(f"2. Current Target ({current_target_idx}) World Pos: [X={target_world_pos_np[0]:.3f}, Y={target_world_pos_np[1]:.3f}, Z={target_world_pos_np[2]:.3f}]")
+                                        print(f"2. Current Target ({current_target_idx}) World Pos: [X={target_world_pos_np[0]:.3f}, Y={target_world_pos_np[1]:.3f}, Z={target_world_pos_np[2]:.3f}]")
                                     except Exception as e:
                                         print(f"Error calculating target world position: {e}")
                             except Exception as e:
@@ -485,7 +468,7 @@ def main():
                         distance_tensor = obv[0]["policy"][eef_to_current_target_dist_key]
                         try:
                             distance = distance_tensor[0].item() if distance_tensor.dim() == 2 else distance_tensor[0, 0].item()
-                            # print(f"4. EEF to Current Target Dist: {distance:.4f}")
+                            print(f"4. EEF to Current Target Dist: {distance:.4f}")
                         except Exception as e:
                             print(f"Error extracting distance value: {e}, tensor shape: {distance_tensor.shape}")
                     
@@ -516,28 +499,28 @@ def main():
                         
                         # 모든 서브태스크 상태 출력
                         status_str = " | ".join([f"{key}: {'✅' if val else '❌'}" for key, val in all_subtasks_status.items()])
-                        # print(f"3. All Subtasks Status: {status_str}")
+                        print(f"3. All Subtasks Status: {status_str}")
                     
                     # --- 5. Terminations 완료 시 성공 메시지 ---
-                    # if success_term is not None:
-                    #     try:
-                    #         success_result = success_term.func(env, **success_term.params)
-                    #         if success_result.numel() > 0 and bool(success_result[0]):
-                    #             if not hasattr(env, '_success_message_shown'):
-                    #                 env._success_message_shown = False
+                    if success_term is not None:
+                        try:
+                            success_result = success_term.func(env, **success_term.params)
+                            if success_result.numel() > 0 and bool(success_result[0]):
+                                if not hasattr(env, '_success_message_shown'):
+                                    env._success_message_shown = False
                                 
-                    #             if not env._success_message_shown:
-                    #                 print("\n" + "="*50)
-                    #                 print("🎉🎉🎉 TASK COMPLETED SUCCESSFULLY! 🎉🎉🎉")
-                    #                 print("="*50 + "\n")
-                    #                 env._success_message_shown = True
+                                if not env._success_message_shown:
+                                    print("\n" + "="*50)
+                                    print("🎉🎉🎉 TASK COMPLETED SUCCESSFULLY! 🎉🎉🎉")
+                                    print("="*50 + "\n")
+                                    env._success_message_shown = True
                                 
-                    #             # 성공 단계 카운트 출력
-                    #             print(f"5. Success Steps: {success_step_count}/{args_cli.num_success_steps}")
-                    #         elif hasattr(env, '_success_message_shown'):
-                    #             env._success_message_shown = False
-                    #     except Exception as e:
-                    #         print(f"Error checking success condition: {e}")
+                                # 성공 단계 카운트 출력
+                                print(f"5. Success Steps: {success_step_count}/{args_cli.num_success_steps}")
+                            elif hasattr(env, '_success_message_shown'):
+                                env._success_message_shown = False
+                        except Exception as e:
+                            print(f"Error checking success condition: {e}")
                     
                     # 마지막 출력 시간 갱신
                     last_print_time = current_time
@@ -554,7 +537,6 @@ def main():
                                 [0], torch.tensor([[True]], dtype=torch.bool, device=env.device)
                             )
                             env.recorder_manager.export_episodes([0])
-
                             should_reset_recording_instance = True
                 else:
                     success_step_count = 0
@@ -566,10 +548,6 @@ def main():
                 print(label_text)
 
             if should_reset_recording_instance:
-                print("Resetting recording instance...")
-                if hasattr(env, "keyboard") and hasattr(env.keyboard, "reset"):
-                    env.keyboard._is_creating_particles = False  # Stop particle generation
-                    env.keyboard.reset()
                 env.sim.reset()
                 env.recorder_manager.reset()
                 env.reset()

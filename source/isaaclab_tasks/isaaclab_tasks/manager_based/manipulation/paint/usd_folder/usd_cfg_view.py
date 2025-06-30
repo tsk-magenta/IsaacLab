@@ -175,5 +175,5 @@ def check_joint_properties(prim, indent):
 
 if __name__ == "__main__":
     # usd_file_to_check = "C:\Users\yuns0\Downloads\rb10_1300e_nozzle\urdf\rb10_1300e_nozzle\rb10_1300e_nozzle.usd"  # 여기에 확인하고 싶은 usd 경로를 입력
-    usd_file_to_check = r"/home/hys/Downloads/rb10_1300e_nozzle/urdf/rb10_1300e_nozzle/rb10_1300e_nozzle.usd"
+    usd_file_to_check = r"C:\Isaaclab\source\isaaclab_assets\isaaclab_assets\robots\rb10_1300e_nozzle\urdf\rb10_1300e_nozzle\rb10_1300e_nozzle.usd"
     print_usd_structure_with_physics_and_materials(usd_file_to_check)

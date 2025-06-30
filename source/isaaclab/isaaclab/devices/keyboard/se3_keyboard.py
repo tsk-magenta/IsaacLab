@@ -520,3 +520,4 @@ class Se3Keyboard(DeviceBase):
             self._stopped_count = 0
             if self._env is not None:
                 self._env.keyboard_stopped_count = 0
+                
