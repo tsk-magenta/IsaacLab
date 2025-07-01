@@ -26,7 +26,7 @@ TARGET_LOCATIONS = {
     "target1": [-0.07 * scale, 0.0 * scale, 0.09 * scale],
     "target2": [0.07 * scale, 0.0 * scale, 0.09 * scale],
     }
-ths = 0.25
+ths = 0.3
 ##
 # Scene definition
 ##

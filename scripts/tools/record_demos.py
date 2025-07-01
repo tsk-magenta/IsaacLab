@@ -425,7 +425,7 @@ def main():
                     # --- 1. 로봇의 EEF 월드 좌표 출력 ---
                     if isinstance(obv[0], dict) and "policy" in obv[0] and "eef_pos" in obv[0]["policy"]:
                         eef_world_pos = obv[0]["policy"]["eef_pos"][0].cpu().numpy()
-                        # print(f"1. EEF World Pos: [X={eef_world_pos[0]:.3f}, Y={eef_world_pos[1]:.3f}, Z={eef_world_pos[2]:.3f}]")
+                        print(f"1. EEF World Pos: [X={eef_world_pos[0]:.3f}, Y={eef_world_pos[1]:.3f}, Z={eef_world_pos[2]:.3f}]")
                     
                     # --- 2. 현재 Target의 World 좌표 출력 ---
                     # 현재 타겟 인덱스 확인
@@ -473,7 +473,7 @@ def main():
                                         
                                         # 월드 좌표 출력
                                         target_world_pos_np = target_world_pos.numpy()
-                                        # print(f"2. Current Target ({current_target_idx}) World Pos: [X={target_world_pos_np[0]:.3f}, Y={target_world_pos_np[1]:.3f}, Z={target_world_pos_np[2]:.3f}]")
+                                        print(f"2. Current Target ({current_target_idx}) World Pos: [X={target_world_pos_np[0]:.3f}, Y={target_world_pos_np[1]:.3f}, Z={target_world_pos_np[2]:.3f}]")
                                     except Exception as e:
                                         print(f"Error calculating target world position: {e}")
                             except Exception as e:
@@ -485,7 +485,7 @@ def main():
                         distance_tensor = obv[0]["policy"][eef_to_current_target_dist_key]
                         try:
                             distance = distance_tensor[0].item() if distance_tensor.dim() == 2 else distance_tensor[0, 0].item()
-                            # print(f"4. EEF to Current Target Dist: {distance:.4f}")
+                            print(f"4. EEF to Current Target Dist: {distance:.4f}")
                         except Exception as e:
                             print(f"Error extracting distance value: {e}, tensor shape: {distance_tensor.shape}")
                     
@@ -516,7 +516,7 @@ def main():
                         
                         # 모든 서브태스크 상태 출력
                         status_str = " | ".join([f"{key}: {'✅' if val else '❌'}" for key, val in all_subtasks_status.items()])
-                        # print(f"3. All Subtasks Status: {status_str}")
+                        print(f"3. All Subtasks Status: {status_str}")
                     
                     # --- 5. Terminations 완료 시 성공 메시지 ---
                     # if success_term is not None:
