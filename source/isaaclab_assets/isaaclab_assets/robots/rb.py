@@ -6,9 +6,6 @@ from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 import os
 
-<<<<<<< HEAD
-RB10_USD_PATH = r"C:\Isaaclab\source\isaaclab_assets\isaaclab_assets\robots\rb10_1300e_nozzle\urdf\rb10_1300e_nozzle\rb10_1300e_nozzle.usd"
-=======
 # Use a relative path from the project root for RB10_USD_PATH
 RB10_USD_PATH = os.path.join(
     os.path.dirname(__file__),
@@ -17,7 +14,6 @@ RB10_USD_PATH = os.path.join(
     "rb10_1300e_nozzle",
     "rb10_1300e_nozzle.usd"
 )
->>>>>>> 4ae99e9a905408ea94a1d6bfdaf3af53c943eb89
 
 # USD 파일의 실제 관절 이름 (USD 파일 내 /rb10_1300e_with_nozzle/joints/ 하위의 조인트 프리미티브 이름)
 joint_names_for_rb10_init = [
