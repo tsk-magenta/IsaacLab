@@ -1,1 +1,0 @@
-C:/Isaaclab/source/isaaclab_mimic/isaaclab_mimic/envs/franka_stack_ik_rel_blueprint_mimic_env_cfg.py
