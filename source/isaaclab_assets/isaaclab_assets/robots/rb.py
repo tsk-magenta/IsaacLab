@@ -7,6 +7,9 @@ from isaaclab.assets.articulation import ArticulationCfg
 import os
 
 # Use a relative path from the project root for RB10_USD_PATH
+RB10_USD_PATH = 
+"/home/tsk/isaaclab/source/isaaclab_assets/isaaclab_assets/robots/rb10_1300e_nozzle/urdf/rb10_1300e_nozzle/rb10_1300e_nozzle.usd"
+"""
 RB10_USD_PATH = os.path.join(
     os.path.dirname(__file__),
     "rb10_1300e_nozzle",
@@ -14,6 +17,8 @@ RB10_USD_PATH = os.path.join(
     "rb10_1300e_nozzle",
     "rb10_1300e_nozzle.usd"
 )
+"""
+print(f"RB10_USD_PATH: " + RB10_USD_PATH)
 
 # USD 파일의 실제 관절 이름 (USD 파일 내 /rb10_1300e_with_nozzle/joints/ 하위의 조인트 프리미티브 이름)
 joint_names_for_rb10_init = [
