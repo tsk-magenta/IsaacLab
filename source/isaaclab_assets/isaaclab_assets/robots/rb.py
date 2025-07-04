@@ -7,8 +7,7 @@ from isaaclab.assets.articulation import ArticulationCfg
 import os
 
 # Use a relative path from the project root for RB10_USD_PATH
-RB10_USD_PATH = 
-"/home/tsk/isaaclab/source/isaaclab_assets/isaaclab_assets/robots/rb10_1300e_nozzle/urdf/rb10_1300e_nozzle/rb10_1300e_nozzle.usd"
+RB10_USD_PATH = "/home/admin/isaaclab/source/isaaclab_assets/isaaclab_assets/robots/rb10_1300e_nozzle/urdf/rb10_1300e_nozzle/rb10_1300e_nozzle.usd"
 """
 RB10_USD_PATH = os.path.join(
     os.path.dirname(__file__),
